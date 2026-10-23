@@ -49,7 +49,7 @@ It works for a semester capstone, a class project, a club app or any small team 
 | Advantage | What it means for you |
 | --- | --- |
 | **Pulls from GitHub and GitLab** | Your existing milestones, issues and commits show up automatically. No double entry. |
-| **Zero install** | It is one HTML file. Open it in any modern browser and you are working. |
+| **Zero install** | It is one HTML file, [`git_project-dashboard.html`](git_project-dashboard.html). Open it in any modern browser and you are working. |
 | **User friendly** | Clean tabs, inline editing, drag and drop, and light or dark mode that follows your system. |
 | **Easy to navigate** | Four focused views, expand or collapse controls, and filters by milestone or teammate. |
 | **Progress at a glance** | Burndown, velocity and per-member charts update the moment an issue changes. |
@@ -100,13 +100,13 @@ The dashboard ships with realistic mock data for a sample project so you can exp
    ```bash
    git clone https://github.com/UIWCyber/UIW-PMD.git
    ```
-2. Open the dashboard HTML file in Chrome, Edge, Firefox or Safari.
+2. Open [`git_project-dashboard.html`](git_project-dashboard.html) in Chrome, Edge, Firefox or Safari.
 3. Pick your name in **Acting as**, then explore the four tabs using the mock data.
 4. When you are ready, connect your GitHub or GitLab project (below) or use **Reset to mock data** to start over.
 
 ## Connecting GitHub or GitLab
 
-The dashboard reads from your repository host through a small configuration block at the top of the script:
+The dashboard reads from your repository host through a small configuration block in the data layer section of `git_project-dashboard.html`:
 
 ```js
 const GITLAB = {
