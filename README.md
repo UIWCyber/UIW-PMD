@@ -2,7 +2,7 @@
 
 > One page to plan the work, follow the team, and see exactly where a project stands.
 
-UIW-PMD is a lightweight project management dashboard built for student and small-team software projects at the University of the Incarnate Word. It pulls milestones, issues, sprints and commit activity from **GitHub** and **GitLab** and turns them into a timeline, a board, an activity feed and progress charts, all in a single browser page.
+UIW-PMD is a lightweight project management dashboard built for student and small-team software projects. It pulls milestones, issues, sprints and commit activity from **GitHub** and **GitLab** and turns them into a timeline, a board, an activity feed and progress charts, all in a single browser page.
 
 ---
 
