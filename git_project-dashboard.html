@@ -3,11 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- No outside scripts, styles or images may load; the page may only talk to https APIs (GitHub, GitLab). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src https:; base-uri 'none'; form-action 'none'">
 <title>Nimbus Project Dashboard</title>
-<script src="https://cdn.tailwindcss.com/3.4.16"></script>
-<script>
-if (window.tailwind) tailwind.config = { corePlugins: { preflight: false } };
-</script>
 <style>
 :root{
   --bg:#0d1117; --bg2:#010409; --panel:#161b22; --panel2:#0d1117; --border:#30363d; --border2:#21262d;
@@ -29,6 +27,7 @@ if (window.tailwind) tailwind.config = { corePlugins: { preflight: false } };
   color-scheme:light;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;display:flex;flex-direction:column;height:100vh;overflow:hidden}
 a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
@@ -72,6 +71,28 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
 .menu-pop button{background:none;border:none;color:var(--text);text-align:left;padding:7px 10px;border-radius:5px;cursor:pointer;font-size:13px}
 .menu-pop button:hover{background:var(--accent);color:#fff}
 .menu-pop button.danger{color:var(--danger)}.menu-pop button.danger:hover{background:var(--danger);color:#fff}
+.menu-pop{min-width:240px;max-width:320px}
+.menu-pop hr{border:none;border-top:1px solid var(--border2);margin:4px 0}
+.menu-sec{font-size:11px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.4px;padding:8px 10px 2px}
+.menu-pop .proj{display:flex;gap:8px;align-items:flex-start}
+.menu-pop .proj .ck{width:12px;flex:none;color:var(--ok)}
+.menu-pop .proj span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.menu-pop .proj small{display:block;font-size:11px;color:var(--faint);overflow:hidden;text-overflow:ellipsis}
+.menu-pop button:hover small,.menu-pop button:hover .ck{color:inherit;opacity:.85}
+
+/* ---------- connect project ---------- */
+.tokhelp{border:1px solid var(--border);border-radius:8px;background:var(--panel2);padding:10px 12px;font-size:13px;line-height:1.5}
+.tokhelp summary{cursor:pointer;font-weight:600;color:var(--accent)}
+.tokhelp p{margin:8px 0}
+.tokhelp ol{margin:6px 0;padding-left:20px}
+.tokhelp li{margin:4px 0}
+.tokhelp code{background:var(--border2);padding:0 5px;border-radius:4px}
+.warnbox{border:1px solid var(--warn);color:var(--text);background:color-mix(in srgb,var(--warn) 10%,transparent);border-radius:8px;padding:8px 12px;font-size:13px}
+.warnbox b{color:var(--warn)}
+.cerr{border:1px solid var(--danger);color:var(--danger);background:color-mix(in srgb,var(--danger) 10%,transparent);border-radius:8px;padding:8px 12px;font-size:13px}
+.saved-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2);font-size:13px}
+.saved-row:last-child{border-bottom:none}
+.saved-row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #view{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .pane{flex:1;overflow:auto;min-height:0}
 .card-p{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius)}
@@ -317,7 +338,7 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
 </head>
 <body>
 <div class="topbar">
-  <div class="brand"><span class="dot"></span>Nimbus Project Dashboard <small>Campus Events Platform · Sep 2026 – Mar 2027</small></div>
+  <div class="brand" id="brand"><span class="dot"></span>Nimbus Project Dashboard <small>Campus Events Platform · Sep 2026 – Mar 2027</small></div>
   <nav class="tabs" id="tabs">
     <button class="tab active" data-view="overview">Overview / Gantt</button>
     <button class="tab" data-view="activity">Activity</button>
@@ -331,6 +352,10 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
   <button class="btn" id="btnSave" title="Save to this browser (Ctrl+S)">Save</button>
   <button class="btn ghost" id="btnTheme" title="Toggle light/dark" aria-label="Toggle theme"><svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg></button>
   <details class="menu"><summary class="btn ghost" title="More">•••</summary><div class="menu-pop">
+    <button id="btnConnect">Connect a project…</button>
+    <div class="menu-sec">Recent projects</div>
+    <div id="recentList" style="display:flex;flex-direction:column"></div>
+    <hr>
     <button id="btnExport">Export JSON</button><button id="btnImport">Import JSON</button><button id="btnReset">Reset to mock data</button><button id="btnClear" class="danger">Clear all data…</button></div></details>
   <input type="file" id="fileIn" accept="application/json" hidden>
 </div>
@@ -382,6 +407,35 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
   </div>
 </div>
 
+<!-- connect project modal -->
+<div class="overlay" id="ovConn">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cTitle" style="max-width:620px">
+    <header><h2 id="cTitle">Connect a project</h2><button class="x" data-close aria-label="Close">&times;</button></header>
+    <div class="mbody" style="grid-template-columns:1fr 1fr">
+      <div class="field full"><label for="cUrl">Project link</label>
+        <input id="cUrl" type="text" spellcheck="false" placeholder="https://github.com/owner/repo  or  https://gitlab.com/group/project">
+        <div class="hint">Open your project in the browser and copy the address from the address bar.</div></div>
+      <div class="field"><label for="cProvider">Hosted on</label>
+        <select id="cProvider"><option value="github">GitHub</option><option value="gitlab">GitLab</option></select></div>
+      <div class="field"><label for="cName">Name in this dashboard (optional)</label><input id="cName" type="text" placeholder="e.g. Capstone team 3"></div>
+      <div class="field full"><label for="cToken">Access token <span id="cTokOpt" style="font-weight:400"></span></label>
+        <input id="cToken" type="password" autocomplete="off" spellcheck="false">
+        <div class="hint" id="cTokState"></div></div>
+      <div class="field full"><label for="cTtl">Keep the token on this computer for</label>
+        <select id="cTtl"><option value="tab">Only until I close this tab</option><option value="1">1 day</option><option value="7">7 days</option><option value="30">30 days</option></select></div>
+      <div class="field full warnbox" id="cShared"><span><b>⚠ Shared or lab computer?</b> Choose <b>Only until I close this tab</b>, and close the tab when you're done. Otherwise the next person to use this browser can open your project with your token.</span></div>
+      <div class="field full cerr" id="cErr" role="alert" hidden></div>
+      <div class="field full" id="cHelp"></div>
+      <div class="field full hint">The dashboard only reads from your project. Edits you make here stay in this browser and are not sent back to GitHub or GitLab.</div>
+    </div>
+    <div class="hist" id="cSaved"></div>
+    <footer>
+      <button class="btn" data-close style="margin-left:auto">Cancel</button>
+      <button class="btn primary" id="cGo">Connect</button>
+    </footer>
+  </div>
+</div>
+
 <!-- analytics zoom -->
 <div class="overlay" id="ovZoom">
   <div class="modal zoom-modal" role="dialog" aria-modal="true">
@@ -397,18 +451,12 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
 "use strict";
 /* =====================================================================
    DATA LAYER
-   Everything the UI renders comes from DataSource.load(). It returns
-   plain objects shaped like a trimmed GitLab API response. To go live,
-   replace MockSource with a GitLabSource that calls:
-     milestones  GET /projects/:id/milestones
-     objectives  GET /groups/:gid/epics      (or scoped labels "objective::…")
-     issues      GET /projects/:id/issues    (weight → sp, assignees[0] → assignee,
-                                              due_date → end, start date via label/custom field)
-     sprints     GET /groups/:gid/iterations
-     events      GET /projects/:id/events  +  GET /projects/:id/repository/commits
-   and maps the results into the same shapes. Nothing else needs to change.
+   Everything the UI renders comes from fetchProject(conn). With no
+   connection it returns the MockSource demo; otherwise GitHubSource or
+   GitLabSource read the project's API and normalizeLive() maps the
+   results into the same plain shapes. Connections are set up from
+   ••• → Connect a project… and kept in the browser (see CONNECTIONS).
    ===================================================================== */
-const GITLAB = { enabled:false, baseUrl:"https://gitlab.example.edu/api/v4", projectId:null, groupId:null, token:"" };
 
 const MockSource = (() => {
   const AS_OF = "2026-10-22";           // mock data is a snapshot taken on this date
@@ -630,20 +678,186 @@ const MockSource = (() => {
   return { name:"mock", load: async () => build() };
 })();
 
-const DataSource = GITLAB.enabled ? /* GitLabSource */ MockSource : MockSource;
+/* ---------- live sources: GitHub and GitLab ---------- */
+const PROVIDER_NAME = {github:"GitHub", gitlab:"GitLab"};
+function apiBase(c){
+  if(c.provider==="github") return c.host==="https://github.com" ? "https://api.github.com" : c.host+"/api/v3";
+  return c.host+"/api/v4";
+}
+async function api(c,path,params){
+  const url=new URL(apiBase(c)+path);
+  Object.entries(params||{}).forEach(([k,v])=>url.searchParams.set(k,v));
+  const tok=await getToken(c), P=PROVIDER_NAME[c.provider];
+  const headers = c.provider==="github"
+    ? Object.assign({Accept:"application/vnd.github+json"}, tok?{Authorization:`Bearer ${tok}`}:{})
+    : (tok?{"PRIVATE-TOKEN":tok}:{});
+  let r;
+  try{ r=await fetch(url,{headers}); }
+  catch(e){ throw new Error(`Couldn't reach ${url.host}. Check the project link and your internet connection.`); }
+  if(r.ok) return r.json();
+  if(!tok&&expiredNow.has(connKey(c))&&[401,403,404].includes(r.status)) throw new Error(`The token saved on this computer for this project has expired. Paste it again below, or create a new one if you didn't keep a copy.`);
+  if(r.status===401) throw new Error(`${P} rejected the token. It may be mistyped, expired or deleted. Make a new one using the steps below.`);
+  if(r.status===403&&r.headers.get("x-ratelimit-remaining")==="0") throw new Error(`${P} allows only 60 requests an hour without a token, and that limit is used up. Add a token below and try again.`);
+  if(r.status===403) throw new Error(tok ? `The token isn't allowed to read this project. Check it has the read permissions listed below${c.provider==="github"?" and access to this repository":""}.` : `${P} refused access. Add a token below.`);
+  if(r.status===404) throw new Error(tok ? `Project not found. Check the link, and that the token has access to this project.` : `Project not found. Check the link. If the project is private, you need to add a token below.`);
+  throw new Error(`${P} returned an error (${r.status}). Try again in a minute.`);
+}
+async function apiAll(c,path,params,maxPages=5){
+  let out=[];
+  for(let page=1;page<=maxPages;page++){
+    const d=await api(c,path,Object.assign({},params,{per_page:100,page}));
+    out=out.concat(d); if(d.length<100) break;
+  }
+  return out;
+}
+const yearAgo = () => new Date(Date.now()-365*864e5).toISOString();
+
+const GitHubSource = { async load(c){
+  const r=`/repos/${c.project}`;
+  const repo=await api(c,r);
+  const [ms,all,commits]=await Promise.all([
+    apiAll(c,r+"/milestones",{state:"all"}),
+    apiAll(c,r+"/issues",{state:"all"}),
+    apiAll(c,r+"/commits",{since:yearAgo()},3).catch(()=>[]),   // empty repos return 409
+  ]);
+  return {
+    title:repo.full_name, sub:repo.description||"GitHub repository", url:repo.html_url, branch:repo.default_branch, mrPrefix:"#",
+    milestones:ms.map(m=>({id:m.number, title:m.title, due:m.due_on?m.due_on.slice(0,10):null, description:m.description})),
+    issues:all.filter(i=>!i.pull_request).map(i=>({id:i.number, title:i.title, description:i.body||"", assignee:i.assignee?.login, author:i.user?.login,
+      msId:i.milestone?.number, labels:i.labels.map(l=>typeof l==="string"?l:l.name), closed:i.state==="closed", createdAt:i.created_at, closedAt:i.closed_at})),
+    merges:all.filter(i=>i.pull_request?.merged_at).map(p=>({id:p.number, title:p.title, ts:p.pull_request.merged_at, actor:p.assignee?.login||p.user?.login})),
+    commits:commits.map(x=>({ts:x.commit.author.date, actor:x.author?.login||x.commit.author.name, msg:x.commit.message.split("\n")[0], sha:x.sha.slice(0,7)})),
+  };
+}};
+
+const GitLabSource = { async load(c){
+  const p=`/projects/${encodeURIComponent(c.project)}`;
+  const proj=await api(c,p);
+  const [ms,all,commits,mrs,members,iters]=await Promise.all([
+    apiAll(c,p+"/milestones",{}),
+    apiAll(c,p+"/issues",{scope:"all"}),
+    apiAll(c,p+"/repository/commits",{since:yearAgo()},3).catch(()=>[]),
+    apiAll(c,p+"/merge_requests",{state:"merged"},2).catch(()=>[]),
+    apiAll(c,p+"/members/all",{},2).catch(()=>[]),
+    apiAll(c,p+"/iterations",{},1).catch(()=>[]),      // GitLab Premium only
+  ]);
+  // commits carry the author's display name; map it to their username so it matches assignees
+  const userOf={}; members.forEach(m=>{ userOf[(m.name||"").toLowerCase()]=m.username; });
+  return {
+    title:proj.name_with_namespace, sub:proj.description||"GitLab project", url:proj.web_url, branch:proj.default_branch, mrPrefix:"!",
+    milestones:ms.map(m=>({id:m.id, title:m.title, due:m.due_date||null, description:m.description})),
+    issues:all.map(i=>({id:i.iid, title:i.title, description:i.description||"", assignee:(i.assignees&&i.assignees[0]||i.assignee)?.username, author:i.author?.username,
+      closer:i.closed_by?.username, msId:i.milestone?.id, labels:i.labels||[], closed:i.state==="closed", createdAt:i.created_at, closedAt:i.closed_at,
+      due:i.due_date||null, sp:i.weight||0, objTitle:i.epic?.title||null, start:i.iteration?.start_date||null})),
+    sprints:iters.map(it=>({start:it.start_date, end:it.due_date, goal:it.title||""})),
+    merges:mrs.map(m=>({id:m.iid, title:m.title, ts:m.merged_at, actor:m.merged_by?.username||m.author?.username})),
+    commits:commits.map(x=>({ts:x.created_at, actor:userOf[(x.author_name||"").toLowerCase()]||x.author_name, msg:x.title, sha:x.short_id})),
+  };
+}};
+
+/* Turn a provider's raw lists into the dashboard's shapes.
+   Conventions read from labels: "sp: 5" / "5 SP" → story points,
+   "objective::Name" → objective, "in progress" / "review" / "ready" → status,
+   and "blocked by #12" / "depends on #12" in the description → blockers. */
+const MS_COLORS = ["#bc8cff","#58a6ff","#f778ba","#e3b341","#3fb950","#ff9b6b","#56d4dd","#db61a2"];
+const SP_RE = /^(?:sp|story ?points?|points?|pts|weight|estimate)\s*[:=]{0,2}\s*(\d+)$|^(\d+)\s*(?:sp|pts?|points?)$/i;
+const OBJ_RE = /^(?:objective|epic)\s*:{1,2}\s*(.+)$/i;
+function statusOf(labels,closed){
+  if(closed) return "done";
+  const s=labels.join(" | ").toLowerCase();
+  if(/review/.test(s)) return "review";
+  if(/in[ -]?progress|doing|\bwip\b/.test(s)) return "progress";
+  if(/\bready\b|to[ -]?do/.test(s)) return "ready";
+  return "todo";
+}
+function normalizeLive(raw,provider){
+  const t=iso(new Date());
+  const day=s=>s?iso(new Date(s)):null;
+  const ts=s=>{ const d=new Date(s); return iso(d)+"T"+[d.getHours(),d.getMinutes(),d.getSeconds()].map(n=>String(n).padStart(2,"0")).join(":"); };
+  const who=s=>s?String(s).replace(/[<>&"'`]/g,""):"unknown";      // names are written into markup unescaped
+  const milestones=raw.milestones.map((m,k)=>({id:m.id, title:m.title, color:MS_COLORS[k%MS_COLORS.length], due:m.due||null,
+    note:(m.description||"").split("\n")[0].trim().slice(0,60)||(m.due?"":"Date TBD")}));
+  const msIds=new Set(milestones.map(m=>m.id)), ids=new Set(raw.issues.map(i=>i.id));
+  let loose=null;
+  const objectives=[], objIdx={};
+  const objFor=(ms,title)=>{ const k=ms+"|"+title; if(!objIdx[k]){ objectives.push({id:objectives.length+1, ms, title}); objIdx[k]=objectives.length; } return objIdx[k]; };
+  const ev=[];
+  const E=(when,actor,type,text,issue,meta)=>{ if(when) ev.push({ts:ts(when), actor:who(actor), type, text, issue:issue??null, meta:meta||null}); };
+
+  const issues=raw.issues.map(r=>{
+    let msId=r.msId;
+    if(!msIds.has(msId)){
+      if(!loose){ loose={id:Math.max(0,...milestones.map(m=>m.id))+1, title:"No milestone", color:"#768390", due:null, note:"Issues not in a milestone"}; milestones.push(loose); }
+      msId=loose.id;
+    }
+    const ms=milestones.find(m=>m.id===msId);
+    let sp=r.sp||0, obj=r.objTitle||null; const labels=[];
+    for(const l of r.labels){ const a=l.match(SP_RE), b=l.match(OBJ_RE); if(a) sp=sp||+(a[1]||a[2]); else if(b) obj=obj||b[1].trim(); else labels.push(l); }
+    const closedAt=r.closed?day(r.closedAt):null;
+    const start=r.start||day(r.createdAt);
+    let end=r.closed?closedAt:(r.due||ms.due||null);
+    const tbd=!r.closed&&!end;
+    if(!end) end=addD(start,13)>t?addD(start,13):t;
+    if(end<start) end=start;
+    const deps=[...r.description.matchAll(/(?:blocked by|depends on)[\s:]*((?:#\d+[\s,]*(?:and\s+)?)+)/gi)]
+      .flatMap(m=>[...m[1].matchAll(/#(\d+)/g)].map(x=>+x[1])).filter(d=>d!==r.id&&ids.has(d));
+    const assignee=r.assignee?who(r.assignee):"Team";
+    E(r.createdAt,r.author,"issue_created",`opened issue #${r.id} ${r.title}`,r.id);
+    if(r.closed) E(r.closedAt,r.closer||r.assignee||r.author,"issue_closed",`closed issue #${r.id} ${r.title}`,r.id);
+    return {id:r.id, title:r.title, description:r.description, assignee, ms:msId, obj:objFor(msId,obj||"Issues"), sp:sp||1,
+      start, end, status:statusOf(r.labels,r.closed), tbd, deps:[...new Set(deps)], labels, closedAt};
+  });
+  raw.merges.forEach(m=>E(m.ts,m.actor,"mr_merged",`merged ${raw.mrPrefix}${m.id} "${m.title}"`,null));
+  raw.commits.forEach(x=>{ const ref=(x.msg.match(/#(\d+)/)||[])[1]; E(x.ts,x.actor,"commit",x.msg,ref&&ids.has(+ref)?+ref:null,{sha:x.sha, branch:raw.branch||"main"}); });
+  ev.sort((a,b)=>a.ts<b.ts?1:a.ts>b.ts?-1:0); ev.forEach((e,k)=>e.id=ev.length-k);
+
+  // sprints: GitLab iterations when the project has them, otherwise a 2-week calendar around the work
+  let sprints=(raw.sprints||[]).filter(s=>s.start&&s.end).sort((a,b)=>a.start<b.start?-1:1).map((s,k)=>({n:k+1, start:s.start, end:s.end, goal:s.goal}));
+  if(!sprints.length){
+    let lo=[addD(t,-28),...issues.map(i=>i.start)].sort()[0]; if(lo<addD(t,-365)) lo=addD(t,-365);
+    let hi=[addD(t,28),...issues.map(i=>i.end),...milestones.map(m=>m.due).filter(Boolean)].sort().pop(); if(hi>addD(t,730)) hi=addD(t,730);
+    const d=pd(lo); d.setDate(d.getDate()-(d.getDay()+6)%7); lo=iso(d);    // start on a Monday
+    for(let s=lo,n=1;s<=hi;s=addD(s,14),n++) sprints.push({n, start:s, end:addD(s,13), goal:""});
+  }
+  const T0=sprints[0].start;
+  issues.forEach(i=>{ if(i.start<T0) i.start=T0; if(i.end<T0) i.end=T0; });
+
+  const count={}, assigned={}, commits={};
+  const bump=(o,n)=>{ if(n&&n!=="Team"&&n!=="unknown"&&!/\[bot\]$/i.test(n)) o[n]=(o[n]||0)+1; };
+  issues.forEach(i=>{ bump(count,i.assignee); bump(assigned,i.assignee); });
+  ev.forEach(e=>{ bump(count,e.actor); if(e.type==="commit") bump(commits,e.actor); });
+  const members=Object.keys(count).sort((a,b)=>count[b]-count[a]).map(name=>({name,
+    role:[assigned[name]?`${assigned[name]} issue${assigned[name]>1?"s":""}`:"",commits[name]?`${commits[name]} commit${commits[name]>1?"s":""}`:""].filter(Boolean).join(" · ")||"Contributor"}));
+
+  return { asOf:t, source:provider, project:{name:raw.title, sub:raw.sub, url:raw.url}, members,
+    milestones, objectives, sprints, issues, events:ev, nextEventId:ev.length+1 };
+}
+async function fetchProject(c){
+  if(!c) return MockSource.load();
+  return normalizeLive(await (c.provider==="github"?GitHubSource:GitLabSource).load(c), c.provider);
+}
 
 /* =====================================================================
    CONFIG
    ===================================================================== */
-const MEMBERS = {
-  Jera:  {role:"Frontend · Web App"},
-  Marcus:{role:"Backend · API & Data"},
-  Priya: {role:"Mobile · iOS & Android"},
-  Noah: {role:"DevOps · CI/CD & QA"},
-  Team:  {role:"Whole team / unassigned"},
-};
-const PEOPLE = ["Jera","Marcus","Priya","Noah"];
-const ASSIGNEES = [...PEOPLE,"Team"];
+// demo members use the theme-aware --c-<name> tokens; live projects get colors from MEMBER_PALETTE
+const DEMO_MEMBERS = [
+  {name:"Jera",  role:"Frontend · Web App", css:true},
+  {name:"Marcus",role:"Backend · API & Data", css:true},
+  {name:"Priya", role:"Mobile · iOS & Android", css:true},
+  {name:"Noah",  role:"DevOps · CI/CD & QA", css:true},
+];
+const MEMBER_PALETTE = [["#3987e5","#ffffff"],["#d95926","#ffffff"],["#199e70","#03140d"],["#c98500","#1a1200"],["#8957e5","#ffffff"],["#d6417f","#ffffff"],["#2b9fae","#03140d"],["#9a7b4f","#ffffff"]];
+let MEMBERS = {}, PEOPLE = [], ASSIGNEES = [];
+function applyMembers(){
+  const list=S.members||DEMO_MEMBERS;
+  MEMBERS={Team:{role:"Whole team / unassigned", css:true}};
+  list.forEach((m,k)=>{ const [color,text]=MEMBER_PALETTE[k%MEMBER_PALETTE.length]; MEMBERS[m.name]={role:m.role, css:!!m.css, color, text}; });
+  PEOPLE=list.map(m=>m.name); ASSIGNEES=[...PEOPLE,"Team"];
+  $("viewer").innerHTML=(PEOPLE.length?PEOPLE:["Team"]).map(p=>`<option>${esc(p)}</option>`).join("");
+  if(!PEOPLE.includes(ui.viewer)) ui.viewer=PEOPLE[0]||"Team";
+  $("viewer").value=ui.viewer;
+}
 const STATUSES = [["todo","Backlog","#768390"],["ready","Ready","#58a6ff"],["progress","In Progress","#d29922"],["review","In Review","#bc8cff"],["done","Done","#3fb950"]];
 const ST = Object.fromEntries(STATUSES.map(([k,l,c])=>[k,{label:l,color:c}]));
 const SP_SCALE = [1,2,3,5,8,13,21];
@@ -691,8 +905,91 @@ const ui = Object.assign({ view:"overview", theme:null, viewer:"Jera", collapsed
   boardMs:"all", boardWho:"all" }, readJSON(LS_UI) || {});
 function readJSON(k){ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):null; }catch(e){ return null; } }
 function saveUI(){ try{ localStorage.setItem(LS_UI, JSON.stringify(ui)); }catch(e){} }
+/* ---------- CONNECTIONS: recent projects, kept in this browser ---------- */
+const LS_CONN = "pm_dashboard_conn_v1";
+const conns = Object.assign({active:null, recent:[]}, readJSON(LS_CONN) || {});
+function saveConns(){ try{ localStorage.setItem(LS_CONN, JSON.stringify(conns)); }catch(e){} }
+const connKey = c => `${c.provider}:${c.host}/${c.project}`.toLowerCase();
+const activeConn = () => conns.recent.find(c=>connKey(c)===conns.active) || null;
+const dataKeyFor = c => c ? `${LS_KEY}@${connKey(c)}` : LS_KEY;     // each project keeps its own saved copy
+const dataKey = () => dataKeyFor(activeConn());
+/* ---------- TOKEN VAULT ----------
+   Tokens are never stored in plain text. Each one is encrypted with AES-GCM using a key
+   generated in this browser and kept in IndexedDB as non-extractable: the page can use it,
+   but no script or DevTools user can read the key out, and copying the browser's storage
+   files to another computer doesn't bring a usable key along.
+   Each token carries an expiry (TTL); "tab" tokens live in sessionStorage and die with the tab.
+   If Web Crypto or IndexedDB is unavailable, the token is kept in memory for this page only. */
+const LS_TOKENS = "pm_dashboard_tokens_v1", SS_TOKENS = "pm_dashboard_tokens_tab_v1";
+const memTokens = {}, expiredNow = new Set();
+let vaultKey = null;
+const vStore = w => w==="tab" ? sessionStorage : localStorage;
+function readVault(w){ try{ return JSON.parse(vStore(w).getItem(w==="tab"?SS_TOKENS:LS_TOKENS))||{}; }catch(e){ return {}; } }
+function writeVault(w,v){ try{ vStore(w).setItem(w==="tab"?SS_TOKENS:LS_TOKENS, JSON.stringify(v)); }catch(e){} }
+function idbKeys(mode,fn){
+  return new Promise((res,rej)=>{
+    const open=indexedDB.open("pm_dashboard_vault",1);
+    open.onupgradeneeded=()=>open.result.createObjectStore("keys");
+    open.onerror=()=>rej(open.error);
+    open.onsuccess=()=>{ const tx=open.result.transaction("keys",mode), q=fn(tx.objectStore("keys")); tx.oncomplete=()=>res(q&&q.result); tx.onerror=()=>rej(tx.error); };
+  });
+}
+async function getVaultKey(){
+  if(vaultKey) return vaultKey;
+  let k=await idbKeys("readonly",s=>s.get("token-key"));
+  if(!k){ k=await crypto.subtle.generateKey({name:"AES-GCM",length:256},false,["encrypt","decrypt"]); await idbKeys("readwrite",s=>s.put(k,"token-key")); }
+  return vaultKey=k;
+}
+const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const unb64 = s => Uint8Array.from(atob(s),ch=>ch.charCodeAt(0));
+// ttl: "tab" or a number of days
+async function saveToken(c,tok,ttl){
+  forgetToken(c);
+  if(!tok) return;
+  const id=connKey(c);
+  try{
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},await getVaultKey(),new TextEncoder().encode(tok));
+    const w=ttl==="tab"?"tab":"local", v=readVault(w);
+    v[id]={iv:b64(iv), ct:b64(ct), exp:ttl==="tab"?null:Date.now()+ttl*864e5};
+    writeVault(w,v);
+  }catch(e){ memTokens[id]=tok; }
+}
+// {tab:true} | {exp:ms} | null — also drops expired tokens
+function tokenInfo(c){
+  const id=connKey(c), v=readVault("local");
+  if(v[id]){ if(v[id].exp>Date.now()) return {exp:v[id].exp}; delete v[id]; writeVault("local",v); expiredNow.add(id); }
+  return readVault("tab")[id]||memTokens[id] ? {tab:true} : null;
+}
+async function getToken(c){
+  const id=connKey(c);
+  if(!tokenInfo(c)) return "";
+  if(memTokens[id]) return memTokens[id];
+  const rec=readVault("local")[id]||readVault("tab")[id];
+  try{ return new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(rec.iv)},await getVaultKey(),unb64(rec.ct))); }
+  catch(e){ forgetToken(c); return ""; }
+}
+function forgetToken(c){
+  const id=connKey(c); delete memTokens[id];
+  for(const w of ["local","tab"]){ const v=readVault(w); if(v[id]){ delete v[id]; writeVault(w,v); } }
+}
+// wipes every token and destroys the key, so any copy of the encrypted data is useless
+async function forgetAllTokens(){
+  Object.keys(memTokens).forEach(k=>delete memTokens[k]);
+  writeVault("local",{}); writeVault("tab",{});
+  vaultKey=null;
+  try{ await idbKeys("readwrite",s=>s.delete("token-key")); }catch(e){}
+}
+function purgeExpiredTokens(){
+  const v=readVault("local"), now=Date.now(); let changed=false;
+  for(const id in v) if(!(v[id].exp>now)){ delete v[id]; expiredNow.add(id); changed=true; }
+  if(changed) writeVault("local",v);
+}
+function rememberConn(c){ conns.recent=[c,...conns.recent.filter(x=>connKey(x)!==connKey(c))].slice(0,6); }
+
 function persist(){
-  try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); dirty=false; status(`Saved ${new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}`); toast("✓ Saved to this browser"); }
+  S.savedAt=new Date().toISOString();
+  try{ localStorage.setItem(dataKey(), JSON.stringify(S)); dirty=false; status(`Saved ${new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}`); toast("✓ Saved to this browser"); }
   catch(e){ toast("⚠ Could not save: browser storage is blocked"); }
 }
 function markDirty(){ dirty=true; status(); }
@@ -714,8 +1011,8 @@ const addD = (s,n) => { const d=pd(s); d.setDate(d.getDate()+n); return iso(d); 
 const diff = (a,b) => Math.round((pd(b)-pd(a))/DAY);
 const fmt = s => s ? pd(s).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "—";
 const fmtL = s => pd(s).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"});
-const mc = n => `var(--c-${(MEMBERS[n]?n:"Team").toLowerCase()})`;
-const mt = n => `var(--t-${(MEMBERS[n]?n:"Team").toLowerCase()})`;
+const mc = n => { const m=MEMBERS[n]; return !m ? "var(--c-team)" : m.css ? `var(--c-${n.toLowerCase()})` : m.color; };
+const mt = n => { const m=MEMBERS[n]; return !m ? "var(--t-team)" : m.css ? `var(--t-${n.toLowerCase()})` : m.text; };
 const avatar = (n,size) => `<span class="avatar" style="background:${mc(n)};color:${mt(n)};${size?`width:${size}px;height:${size}px;font-size:${Math.round(size/2)}px`:""}" title="${esc(n)}">${n==="Team"?"T":esc(n[0])}</span>`;
 const icon = (type,size=14) => `<svg width="${size}" height="${size}" viewBox="0 0 16 16" aria-hidden="true">${ICONS[type]||ICONS.issue_updated}</svg>`;
 const issueIcon = i => i.status==="done"
@@ -746,10 +1043,17 @@ document.addEventListener("mouseout",e=>{ if(e.target.closest("[data-tip]")&&!e.
    RENDER ROOT
    ===================================================================== */
 const view=document.getElementById("view");
+const BRAND_DEMO = document.getElementById("brand").innerHTML, TITLE_DEMO = document.title;
 function render(){
   document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.view===ui.view));
+  renderBrand();
   renderLegend();
   ({overview:renderOverview, activity:renderActivity, board:renderBoard, analytics:renderAnalytics})[ui.view]();
+}
+function renderBrand(){
+  const p=S.project;
+  document.getElementById("brand").innerHTML = p ? `<span class="dot"></span>${esc(p.name)} <small>${esc(p.sub)}</small>` : BRAND_DEMO;
+  document.title = p ? `${p.name} · Project Dashboard` : TITLE_DEMO;
 }
 function renderLegend(){
   let h="";
@@ -1436,9 +1740,8 @@ function statusDist(){
    ===================================================================== */
 function applyTheme(){ const th=ui.theme||"dark"; document.documentElement.dataset.theme=th; }
 document.getElementById("tabs").onclick=e=>{ const b=e.target.closest(".tab"); if(!b) return; ui.view=b.dataset.view; saveUI(); render(); };
-$("viewer").innerHTML=PEOPLE.map(p=>`<option>${p}</option>`).join("");
-$("viewer").onchange=e=>{ ui.viewer=e.target.value; saveUI(); toast(`Edits will be recorded as ${ui.viewer}`); };
-document.querySelectorAll(".menu-pop button").forEach(b=>b.addEventListener("click",()=>b.closest("details").open=false));
+$("viewer").onchange=e=>{ ui.viewer=e.target.value; saveUI(); toast(`Edits will be recorded as ${esc(ui.viewer)}`); };
+document.querySelector(".menu-pop").addEventListener("click",e=>{ if(e.target.closest("button")) e.currentTarget.closest("details").open=false; });
 document.addEventListener("click",e=>{ const m=document.querySelector("details.menu"); if(m.open&&!e.target.closest("details.menu")) m.open=false; });
 $("btnSave").onclick=persist;
 $("mSave").onclick=saveIssue; $("mDelete").onclick=deleteIssue; $("sSave").onclick=saveSprint;
@@ -1454,26 +1757,209 @@ $("btnTheme").onclick=()=>{ ui.theme=document.documentElement.dataset.theme==="l
 $("btnExport").onclick=()=>{ const blob=new Blob([JSON.stringify(S,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`project-dashboard-${iso(new Date())}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); };
 $("btnImport").onclick=()=>$("fileIn").click();
 $("fileIn").onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader();
-  r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.issues||!d.milestones||!d.sprints) throw new Error("missing issues, milestones or sprints"); S=d; markDirty(); render(); toast("Imported · click Save to keep"); }catch(err){ alert("Could not import: "+err.message); } };
+  r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.issues||!d.milestones||!d.sprints) throw new Error("missing issues, milestones or sprints"); S=d; applyMembers(); markDirty(); render(); toast("Imported · click Save to keep"); }catch(err){ alert("Could not import: "+err.message); } };
   r.readAsText(f); e.target.value=""; };
 $("btnClear").onclick=()=>{
   if(!confirm("Clear ALL data?\n\nThis removes every issue, objective, milestone and activity event so you can start from a blank project. The 2-week sprint calendar is kept.\n\nTip: use Export JSON first if you want a backup. You can bring the mock data back with Reset to mock data.")) return;
-  S={asOf:iso(new Date()), source:"empty", milestones:[], objectives:[], sprints:S.sprints, issues:[], events:[], nextEventId:1};
+  S={asOf:iso(new Date()), source:"empty", project:S.project, members:S.members, milestones:[], objectives:[], sprints:S.sprints, issues:[], events:[], nextEventId:1};
   ui.q=""; ui.hidden=[]; ui.hmDay=null; ui.collapsed=[]; ui.boardMs="all"; saveUI();
   persist(); status("Blank project"); render(); toast("All data cleared");
 };
-$("btnReset").onclick=async()=>{ if(!confirm("Discard all local changes and reload the original mock data?")) return; try{ localStorage.removeItem(LS_KEY); }catch(e){} S=await DataSource.load(); dirty=false; status("Reset to mock data"); render(); };
+$("btnReset").onclick=async()=>{
+  const c=activeConn();
+  if(!confirm(c ? `Discard local changes and reload the latest data from ${PROVIDER_NAME[c.provider]}?` : "Discard all local changes and reload the original mock data?")) return;
+  try{ localStorage.removeItem(dataKey()); }catch(e){}
+  try{ await openProject(c,true); }catch(err){ status(); openConnect(c,err.message); }
+};
 window.addEventListener("beforeunload",e=>{ if(dirty){ e.preventDefault(); e.returnValue=""; } });
+
+/* ---------- switching projects ---------- */
+// Opens a project (c = null for the demo). Uses this browser's saved copy unless `fresh`, otherwise fetches it.
+async function openProject(c,fresh){
+  const saved=fresh?null:readJSON(dataKeyFor(c));
+  let data=saved&&saved.issues?saved:null;
+  if(!data){
+    if(c) $("statusLine").innerHTML=`Loading ${esc(c.name)} from ${PROVIDER_NAME[c.provider]}…`;
+    data=await fetchProject(c);
+  }
+  const switching=(c?connKey(c):null)!==conns.active;
+  conns.active=c?connKey(c):null;
+  if(c){ c.lastOpened=Date.now(); rememberConn(c); }
+  saveConns();
+  S=data; dirty=false; applyMembers();
+  if(switching){
+    Object.assign(ui,{q:"", hidden:[], hmDay:null, collapsed:[], boardMs:"all", boardWho:"all", feedMember:"all", hmMember:"all"});
+    renderOverview._did=false;   // scroll the new timeline to today
+  }
+  saveUI();
+  const time=d=>new Date(d).toLocaleString([], {month:"short", day:"numeric", hour:"numeric", minute:"2-digit"});
+  lastStatus = data===saved ? `Saved copy${S.savedAt?" from "+time(S.savedAt):""}`
+    : c ? `Live from ${PROVIDER_NAME[c.provider]} · ${time(Date.now())}` : `Mock data · snapshot ${fmt(S.asOf)}`;
+  $("btnReset").textContent = c ? `Reload from ${PROVIDER_NAME[c.provider]}` : "Reset to mock data";
+  status(); render(); renderRecent();
+}
+async function switchTo(c){
+  if(dirty&&!confirm("You have unsaved changes. Switch projects and lose them?")) return;
+  try{ await openProject(c,false); toast(`Opened ${esc(c?c.name:"demo project")}`); }
+  catch(err){ status(); openConnect(c,err.message); }
+}
+function renderRecent(){
+  const row=(key,name,sub)=>`<button class="proj" data-proj="${esc(key)}"><span class="ck">${key===(conns.active||"")?"✓":""}</span><span>${esc(name)}<small>${esc(sub)}</small></span></button>`;
+  $("recentList").innerHTML = conns.recent.map(c=>row(connKey(c),c.name,`${PROVIDER_NAME[c.provider]} · ${c.project}`)).join("")
+    + row("","Demo project","Sample data · Nimbus");
+}
+$("recentList").addEventListener("click",e=>{
+  const b=e.target.closest("[data-proj]"); if(!b||b.dataset.proj===(conns.active||"")) return;
+  switchTo(conns.recent.find(c=>connKey(c)===b.dataset.proj)||null);
+});
+
+/* ---------- connect popup ---------- */
+// Accepts a browser link, a clone URL (https or git@) or "owner/repo".
+function parseProjectUrl(s,fallback){
+  s=s.trim().replace(/\.git$/,"").replace(/\/+$/,"");
+  const ssh=s.match(/^git@([^:]+):(.+)$/); if(ssh) s=`https://${ssh[1]}/${ssh[2]}`;
+  if(!/^https?:\/\//i.test(s)) s = /^[\w.-]+(\/[\w.-]+)+$/.test(s) && !/^[\w-]+\.[\w.-]+\//.test(s) ? `https://${fallback==="gitlab"?"gitlab.com":"github.com"}/${s}` : "https://"+s;
+  let u; try{ u=new URL(s); }catch(e){ return null; }
+  const h=u.hostname.toLowerCase();
+  const provider = h==="github.com"||h.startsWith("github.") ? "github" : h.includes("gitlab") ? "gitlab" : fallback;
+  let path=u.pathname.replace(/^\/+|\/+$/g,"").split("/-/")[0];     // drop GitLab sub-pages like /-/issues
+  if(provider==="github") path=path.split("/").slice(0,2).join("/"); // drop GitHub sub-pages like /issues
+  if(path.split("/").length<2) return null;
+  return {provider, host:`${u.protocol}//${u.host}`, project:decodeURIComponent(path)};
+}
+function tokenHelp(provider,host){
+  if(provider==="gitlab"){
+    const base=host||"https://gitlab.com";
+    return `<details class="tokhelp"><summary>What's a token, and how do I get one?</summary>
+      <p>A token is a password made just for this dashboard. It lets the page <b>read</b> your project's issues, milestones and commits. With the steps below it can't change anything.</p>
+      <p><b>Do I need one?</b> Public projects work without one. Private projects (most class projects) need one.</p>
+      <ol>
+        <li><a href="${esc(base)}/-/user_settings/personal_access_tokens?name=UIW-PMD%20dashboard&scopes=read_api" target="_blank" rel="noopener">Open GitLab's new token page</a> and sign in if asked. The name and permission are filled in for you.</li>
+        <li><b>Expiration date:</b> pick a date after your semester ends.</li>
+        <li><b>Scopes:</b> make sure only <b>read_api</b> is ticked.</li>
+        <li>Click <b>Create personal access token</b>.</li>
+        <li>Copy the token (it starts with <code>glpat-</code>) and paste it in the box above. GitLab shows it <b>only once</b>, so paste it before leaving the page.</li>
+      </ol>
+      <p class="hint">Keep it secret: don't put it in your code, a commit or a chat. If it leaks, revoke it on the same page and make a new one. The dashboard keeps it encrypted in this browser, deletes it when the time you chose runs out, and sends it only to ${esc(new URL(base).host)}.</p>
+    </details>`;
+  }
+  const base=host&&host!=="https://github.com"?host:"https://github.com";
+  return `<details class="tokhelp"><summary>What's a token, and how do I get one?</summary>
+    <p>A token is a password made just for this dashboard. It lets the page <b>read</b> your repository's issues, milestones and commits. With the steps below it can't change anything.</p>
+    <p><b>Do I need one?</b> Private repos need one. Public repos work without one, but GitHub then allows only 60 requests an hour, so a token is still recommended.</p>
+    <ol>
+      <li><a href="${esc(base)}/settings/personal-access-tokens/new" target="_blank" rel="noopener">Open GitHub's new token page</a> and sign in if asked.</li>
+      <li><b>Token name:</b> <code>UIW-PMD dashboard</code>. <b>Expiration:</b> a date after your semester ends.</li>
+      <li><b>Resource owner:</b> whoever owns the repo, you or your team/class organization.</li>
+      <li><b>Repository access:</b> choose <b>Only select repositories</b> and pick your project.</li>
+      <li><b>Permissions → Repository permissions:</b> set <b>Contents</b>, <b>Issues</b> and <b>Pull requests</b> to <b>Read-only</b>.</li>
+      <li>Click <b>Generate token</b>, copy it (it starts with <code>github_pat_</code>) and paste it in the box above. GitHub shows it <b>only once</b>.</li>
+    </ol>
+    <p class="hint">Organization not listed, or the token says it's waiting for approval? Ask your instructor or the organization owner to approve it. As a fallback, a <a href="${esc(base)}/settings/tokens/new?description=UIW-PMD%20dashboard&scopes=repo" target="_blank" rel="noopener">classic token</a> with the <b>repo</b> scope also works.</p>
+    <p class="hint">Keep it secret: don't put it in your code, a commit or a chat. If it leaks, delete it on the same page and make a new one. The dashboard keeps it encrypted in this browser, deletes it when the time you chose runs out, and sends it only to GitHub.</p>
+  </details>`;
+}
+let helpFor=null, connEditing=null;
+function connFormChanged(){
+  const sel=$("cProvider");
+  const p=parseProjectUrl($("cUrl").value,sel.value);
+  if(p&&!sel.dataset.manual) sel.value=p.provider;
+  // pointing an edited connection at a different project: don't carry its old name over
+  if(connEditing&&p&&connKey(p)!==connKey(connEditing)&&$("cName").value===connEditing.name) $("cName").value="";
+  const provider=sel.value, host=p&&p.provider===provider?p.host:null;
+  $("cTokOpt").textContent = provider==="github" ? "(needed for private repos, recommended for all)" : "(needed for private projects)";
+  if(!(connEditing&&tokenInfo(connEditing))) $("cToken").placeholder = provider==="github" ? "github_pat_…" : "glpat-…";
+  if(helpFor!==provider+host){ helpFor=provider+host; $("cHelp").innerHTML=tokenHelp(provider,host); }
+}
+function showConnErr(msg){ $("cErr").hidden=!msg; $("cErr").textContent=msg||""; if(msg) $("cHelp").querySelector("details").open=/token/i.test(msg); }
+const fmtWhen = ms => new Date(ms).toLocaleString([], {month:"short", day:"numeric", hour:"numeric", minute:"2-digit"});
+function tokenLabel(c){ const t=tokenInfo(c); return !t ? "" : t.tab ? "token for this tab only" : `token kept until ${fmtWhen(t.exp)}`; }
+function renderSaved(){
+  const anyToken=conns.recent.some(c=>tokenInfo(c));
+  $("cSaved").innerHTML = conns.recent.length ? `<h4>Saved projects</h4>` + conns.recent.map(c=>`<div class="saved-row">
+      <span class="nm"><b>${esc(c.name)}</b> <span class="hint">${[PROVIDER_NAME[c.provider], esc(c.project), tokenLabel(c), connKey(c)===conns.active?"open now":""].filter(Boolean).join(" · ")}</span></span>
+      <button class="btn sm" data-edit="${esc(connKey(c))}">Edit</button><button class="btn sm" data-forget="${esc(connKey(c))}">Remove</button></div>`).join("")
+    + (anyToken ? `<div style="margin-top:8px"><button class="btn sm" id="cForgetAll" title="Use this before leaving a shared computer">Forget all tokens on this computer</button></div>` : "") : "";
+}
+function renderTokState(c){
+  const t=c&&tokenInfo(c);
+  $("cTokState").innerHTML = t ? `A token is saved for this project (${tokenLabel(c)}). Leave the box empty to keep using it. <a href="#" id="cForgetTok">Forget it</a>` : "";
+  $("cToken").value="";
+  $("cToken").placeholder = t ? "•••••••• saved · paste a new token to replace it" : $("cProvider").value==="github" ? "github_pat_…" : "glpat-…";
+}
+function openConnect(c,err){
+  connEditing=c||null;
+  $("cTitle").textContent = c ? "Edit project connection" : "Connect a project";
+  $("cUrl").value = c ? `${c.host}/${c.project}` : "";
+  $("cProvider").value = c ? c.provider : "github"; delete $("cProvider").dataset.manual;
+  $("cName").value = c ? c.name : "";
+  const t=c&&tokenInfo(c);
+  $("cTtl").value = t&&t.tab ? "tab" : "7"; delete $("cTtl").dataset.changed;
+  helpFor=null; connFormChanged(); renderTokState(c); showConnErr(err); renderSaved();
+  $("ovConn").classList.add("open"); setTimeout(()=>$("cUrl").focus(),50);
+}
+$("btnConnect").onclick=()=>openConnect(null);
+$("cUrl").addEventListener("input",connFormChanged);
+$("cProvider").addEventListener("change",e=>{ e.target.dataset.manual="1"; connFormChanged(); });
+["cUrl","cName","cToken"].forEach(id=>$(id).addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("cGo").click(); } }));
+$("cTtl").addEventListener("change",e=>{ e.target.dataset.changed="1"; });
+$("cTokState").addEventListener("click",e=>{
+  if(e.target.id!=="cForgetTok") return; e.preventDefault();
+  forgetToken(connEditing); renderTokState(connEditing); renderSaved(); toast("Token forgotten on this computer");
+});
+$("cSaved").addEventListener("click",async e=>{
+  if(e.target.id==="cForgetAll"){
+    if(!confirm("Forget every saved token on this computer?\n\nYour projects stay in the list; you'll paste a token again the next time you open a private one.")) return;
+    await forgetAllTokens(); renderTokState(connEditing); renderSaved(); toast("All tokens forgotten on this computer"); return;
+  }
+  const ed=e.target.closest("[data-edit]"), fg=e.target.closest("[data-forget]");
+  if(ed) openConnect(conns.recent.find(c=>connKey(c)===ed.dataset.edit));
+  if(fg){
+    const c=conns.recent.find(x=>connKey(x)===fg.dataset.forget);
+    if(!confirm(`Remove ${c.name} from your projects?\n\nIts token and saved copy are deleted from this browser. Nothing changes on ${PROVIDER_NAME[c.provider]}.`)) return;
+    try{ localStorage.removeItem(dataKeyFor(c)); }catch(err){}
+    forgetToken(c); conns.recent=conns.recent.filter(x=>x!==c);
+    if(conns.active===connKey(c)){ closeOverlays(); dirty=false; openProject(null,false); } else { saveConns(); renderSaved(); renderRecent(); }
+  }
+});
+$("cGo").onclick=async()=>{
+  const sel=$("cProvider");
+  const p=parseProjectUrl($("cUrl").value,sel.value);
+  if(!p) return showConnErr("Paste the full link to your project, for example https://github.com/owner/repo");
+  if(sel.dataset.manual) p.provider=sel.value;
+  const typed=$("cToken").value.trim(), ttl=$("cTtl").value==="tab"?"tab":+$("cTtl").value;
+  const c=Object.assign(p,{name:$("cName").value.trim()||p.project.split("/").pop()});
+  const hasSaved=!!readJSON(dataKeyFor(c));
+  if(hasSaved&&!confirm(`Load the latest data for ${c.name}?\n\nThis replaces the copy saved in this browser, including any local edits.`)) return;
+  if(dirty&&conns.active!==connKey(c)&&!confirm("You have unsaved changes. Switch projects and lose them?")) return;
+  const btn=$("cGo"); btn.disabled=true; btn.textContent="Connecting…"; showConnErr("");
+  // store the token: a newly pasted one, or the existing one moved to a new link or a new "keep for" choice
+  const prev=connEditing, moved=prev&&connKey(prev)!==connKey(c);
+  const keep=!typed&&prev&&(moved||$("cTtl").dataset.changed) ? await getToken(prev) : "";
+  if(typed||keep) await saveToken(c,typed||keep,ttl);
+  if(moved&&(typed||keep)) forgetToken(prev);
+  try{
+    await openProject(c,true);
+    if(connEditing&&connKey(connEditing)!==connKey(c)){ conns.recent=conns.recent.filter(x=>x!==connEditing); saveConns(); renderRecent(); }
+    if(hasSaved) try{ localStorage.removeItem(dataKeyFor(c)); }catch(e){}
+    closeOverlays(); toast(`✓ Connected to ${esc(c.name)}`);
+  }catch(err){
+    if(!conns.recent.some(x=>connKey(x)===connKey(c))) forgetToken(c);   // don't keep tokens for projects that never connected
+    showConnErr(err.message); status();
+  }
+  finally{ btn.disabled=false; btn.textContent="Connect"; }
+};
 
 (async function init(){
   applyTheme();
-  const saved=readJSON(LS_KEY);
-  S = saved && saved.issues ? saved : await DataSource.load();
-  if(!PEOPLE.includes(ui.viewer)) ui.viewer="Jera";
-  $("viewer").value=ui.viewer;
-  lastStatus = saved ? "Loaded your saved copy" : `Mock data · snapshot ${fmt(S.asOf)}`;
-  status();
-  render();
+  // earlier builds kept tokens in plain text: encrypt them and remove the plain copies
+  for(const c of conns.recent) if(c.token){ await saveToken(c,c.token,7); delete c.token; }
+  saveConns();
+  try{ Object.keys(sessionStorage).filter(k=>k.startsWith("pm_dashboard_token:")).forEach(k=>sessionStorage.removeItem(k)); }catch(e){}
+  purgeExpiredTokens();
+  const c=activeConn();
+  try{ await openProject(c,false); }
+  catch(err){ await openProject(null,false); openConnect(c,`Couldn't load ${c.name}: ${err.message}`); }
 })();
 </script>
 </body>

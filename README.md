@@ -102,31 +102,44 @@ The dashboard ships with realistic mock data for a sample project so you can exp
    ```
 2. Open [`git_project-dashboard.html`](git_project-dashboard.html) in Chrome, Edge, Firefox or Safari.
 3. Pick your name in **Acting as**, then explore the four tabs using the mock data.
-4. When you are ready, connect your GitHub or GitLab project (below) or use **Reset to mock data** to start over.
+4. When you are ready, open **•••** → **Connect a project…** to load your GitHub or GitLab project (below).
 
 ## Connecting GitHub or GitLab
 
-The dashboard reads from your repository host through a small configuration block in the data layer section of `git_project-dashboard.html`:
+No code changes needed. Click the **•••** menu (top right) → **Connect a project…**
 
-```js
-const GITLAB = {
-  enabled: false,
-  baseUrl: "https://gitlab.example.edu/api/v4",
-  projectId: null,
-  groupId: null,
-  token: ""
-};
-```
+1. **Project link:** paste the address of your repository from the browser, for example `https://github.com/owner/repo` or `https://gitlab.com/group/project`. The dashboard works out whether it is GitHub or GitLab (pick it by hand for a self-hosted GitLab with an unusual address).
+2. **Access token:** a password made just for the dashboard that lets it *read* your project.
+   - **Private projects need one.** Public GitHub repos work without one, but GitHub then allows only 60 requests an hour.
+   - Open **What's a token, and how do I get one?** in the popup for step-by-step instructions and a link straight to the right page.
+   - GitHub: a fine-grained token with **Contents**, **Issues** and **Pull requests** set to *Read-only* (starts with `github_pat_`).
+   - GitLab: a personal access token with only the **read_api** scope (starts with `glpat-`).
+3. Click **Connect**.
 
-| Dashboard item | GitLab endpoint | GitHub equivalent |
+Every project you connect is listed under **Recent projects** in the same menu, so you can jump between projects (or back to the demo) in one click. Each project keeps its own saved copy in your browser, and **Reload from GitHub/GitLab** in the menu pulls the latest data. Use **Edit** or **Remove** under *Saved projects* in the popup to change or forget a connection.
+
+**How tokens are kept safe**
+
+- **Encrypted:** tokens are stored encrypted (AES-GCM). The key is created in your browser and can't be read out or copied to another computer.
+- **Expires automatically:** you choose how long the computer keeps it: *only until you close the tab*, 1, 7 (default) or 30 days. After that it is deleted and the dashboard asks for it again.
+- **Shared or lab computers:** pick *Only until I close this tab*, and use **Forget all tokens on this computer** in the popup before you leave.
+- **Never leaves your browser** except in requests to GitHub or GitLab. It is not in exported JSON, and the page can't load outside scripts.
+- **Use a read-only token** (the popup's steps create one), so even a leaked token can't change your project. Never commit a token to the repository.
+
+What the dashboard reads, and how it maps it:
+
+| Dashboard item | GitHub | GitLab |
 | --- | --- | --- |
-| Milestones | `GET /projects/:id/milestones` | `GET /repos/:owner/:repo/milestones` |
-| Objectives | `GET /groups/:gid/epics` | Labels or project fields |
-| Issues | `GET /projects/:id/issues` | `GET /repos/:owner/:repo/issues` |
-| Sprints | `GET /groups/:gid/iterations` | Project iteration fields |
-| Commits | `GET /projects/:id/repository/commits` | `GET /repos/:owner/:repo/commits` |
+| Milestones | Milestones | Milestones |
+| Objectives | `objective::Name` label | Epic, or `objective::Name` label |
+| Issues | Issues (assignee, labels, open/closed) | Issues (assignee, labels, weight, due date) |
+| Story points | `sp: 5` or `5 SP` label (default 1) | Weight, or an `sp: 5` label |
+| Status | Labels containing *ready*, *in progress* or *review*; closed = Done | Same, e.g. `status::in progress` |
+| Blocked by | "Blocked by #12" or "Depends on #12" in the description | Same |
+| Sprints | 2-week calendar around the work | Iterations (Premium), otherwise a 2-week calendar |
+| Activity | Commits, issues opened/closed, merged pull requests | Commits, issues opened/closed, merged merge requests |
 
-Set `enabled: true`, fill in your project details and a read-only personal access token, and reload the page. Never commit a real token to the repository.
+Edits made in the dashboard stay in your browser; they are not written back to GitHub or GitLab.
 
 ## Tracking your progress
 
