@@ -15,8 +15,10 @@ UIW-PMD is a lightweight project management dashboard built for student and smal
 - [How it works](#how-it-works)
 - [Getting started](#getting-started)
 - [Connecting GitHub or GitLab](#connecting-github-or-gitlab)
+- [Setting up your issues](#setting-up-your-issues)
 - [Tracking your progress](#tracking-your-progress)
 - [Keyboard shortcuts](#keyboard-shortcuts)
+- [Open design decisions](#open-design-decisions)
 - [Contributors](#contributors)
 - [License](#license)
 
@@ -60,7 +62,7 @@ It works for a semester capstone, a class project, a club app or any small team 
 ## The four views
 
 ### 1. Overview / Gantt
-A timeline of every milestone, objective and issue, with start and due dates, story points and owners.
+A timeline of every milestone, objective and issue, with start and due dates, story points and owners. Each item is tagged as a **User Story**, **Issue**, **Task** or **Sub-task**, and tasks nest under the story they belong to (click the arrow to fold them).
 - Zoom the timeline by **Month**, **Sprint** or **Week**.
 - Switch between **Summary view**, **Collapse all** and **Expand all** to go from the big picture to the details.
 - Show or hide date columns, add milestones and objectives in place, and spot deadlines that were extended.
@@ -89,7 +91,7 @@ Charts that show progress without any extra work:
 
 1. **Load.** A data source fetches milestones, objectives (epics), issues, sprints (iterations) and commits from your repository host and shapes them into plain objects.
 2. **Render.** Every view is drawn from that one shared state, so the timeline, the board and the charts always agree with each other.
-3. **Edit.** Click any title, date or field to edit it inline, or open the full issue editor for assignee, status, story points, milestone, sprint, labels and blockers.
+3. **Edit.** Click any title, date or field to edit it inline, or open the full issue editor for assignee, status, story points, type, parent, milestone, sprint, labels and blockers.
 4. **Save.** Changes are kept in your browser (press **Ctrl+S**) and can be exported as JSON to share with teammates or keep as a backup.
 
 The dashboard ships with realistic mock data for a sample project so you can explore every feature before connecting a real repository.
@@ -114,6 +116,7 @@ No code changes needed. Click the **•••** menu (top right) → **Connect a
    - Open **What's a token, and how do I get one?** in the popup for step-by-step instructions and a link straight to the right page.
    - GitHub: a fine-grained token with **Contents**, **Issues** and **Pull requests** set to *Read-only* (starts with `github_pat_`).
    - GitLab: a personal access token with only the **read_api** scope (starts with `glpat-`).
+   - **Using a GitHub Project board?** To read its *Estimate* / *Story Points* field and its *Status* column, use a classic token with **repo** and **read:project**. For a project owned by an organization, a fine-grained token also works with **Organization permissions → Projects** set to *Read-only*.
 3. Click **Connect**.
 
 Every project you connect is listed under **Recent projects** in the same menu, so you can jump between projects (or back to the demo) in one click. Each project keeps its own saved copy in your browser, and **Reload from GitHub/GitLab** in the menu pulls the latest data. Use **Edit** or **Remove** under *Saved projects* in the popup to change or forget a connection.
@@ -131,15 +134,59 @@ What the dashboard reads, and how it maps it:
 | Dashboard item | GitHub | GitLab |
 | --- | --- | --- |
 | Milestones | Milestones | Milestones |
-| Objectives | `objective::Name` label | Epic, or `objective::Name` label |
+| Objectives | `objective::Name` label, otherwise one group per item type (User Stories, Issues, Tasks, Sub-tasks) | Epic or `objective::Name` label, otherwise grouped by type |
 | Issues | Issues (assignee, labels, open/closed) | Issues (assignee, labels, weight, due date) |
-| Story points | `sp: 5` or `5 SP` label (default 1) | Weight, or an `sp: 5` label |
-| Status | Labels containing *ready*, *in progress* or *review*; closed = Done | Same, e.g. `status::in progress` |
+| Item type | Issue type, title prefix or label (see [below](#setting-up-your-issues)) | Task type, title prefix or label |
+| Parent / sub-items | Sub-issues, "Parent: #7" in the description, or a `- [ ] #12` task list in the parent | "Parent: #7" or a task list |
+| Story points | Project field *Estimate* / *Story Points*, an `sp: 5` label, or "Story points: 5" in the description. No default: unestimated items show **–** | Weight, an `sp: 5` label, or "Story points: 5" in the description |
+| Status | Project *Status* column (with a token), or labels containing *ready*, *in progress* or *review*; closed = Done | Labels, e.g. `status::in progress`; closed = Done |
 | Blocked by | "Blocked by #12" or "Depends on #12" in the description | Same |
 | Sprints | 2-week calendar around the work | Iterations (Premium), otherwise a 2-week calendar |
 | Activity | Commits, issues opened/closed, merged pull requests | Commits, issues opened/closed, merged merge requests |
 
 Edits made in the dashboard stay in your browser; they are not written back to GitHub or GitLab.
+
+After updating the dashboard file, use **•••** → **Reload from GitHub/GitLab** once. Copies saved by an older version keep the old layout, and the status line tells you so.
+
+## Setting up your issues
+
+The dashboard reads a few simple conventions. You don't need all of them, but the more your issues follow them, the more accurate the timeline and charts are.
+
+**1. Say what kind of item it is.** Start the title with its type, or add a label with the same name:
+
+| Type | Title examples | Label examples |
+| --- | --- | --- |
+| User Story | `User Story - Define project scope`, `Story: Export reports` | `story`, `user story` |
+| Issue | `Issue - Integration compatibility`, `Bug: Login fails` | `issue`, `bug` |
+| Task | `Task: Produce requirements document` | `task` |
+| Sub-task | `Sub-task: Draft interview questions` | `sub-task`, `subtask` |
+
+A GitHub issue type set in the repository wins over the title, and the title wins over labels. Items with no type count as Issues. The prefix is hidden in the dashboard because the type shows as a tag.
+
+**2. Link tasks to their story.** Use any one of these:
+
+- GitHub **sub-issues** (in the issue sidebar: *Create sub-issue* or *Add existing issue*).
+- A line in the task's description: `Parent: #7`, `Part of #7` or `Sub-task of #7`.
+- A task list in the story's description: `- [ ] #12`.
+
+A linked task appears under its story when both are in the same milestone. Otherwise it stays in its own group and shows **↳ #7**.
+
+**3. Estimate in story points.** Use any one of these (first match wins):
+
+- A number field named **Estimate** or **Story Points** on your GitHub Project board (needs the token above).
+- A label: `sp: 5`, `story points: 5` or `5 SP`.
+- A line in the description: `Story points: 5` or `Estimate: 5`. In the class issue template, replace `TBD` under **Estimation of effort** with a number.
+
+On GitLab, the issue's weight is used first.
+
+**How points are counted:**
+
+- Each estimate counts **once**. If a story has an estimate, that covers its tasks, so their points aren't added again.
+- If a story has no estimate, it shows the total of its tasks, in grey.
+- Unestimated items show **–**. The *Story points done* card counts them, so you can see what still needs an estimate.
+- "In a sprint" always means *due inside the sprint*. Every view uses the same totals.
+
+**4. Mark blockers.** Write `Blocked by #12` or `Depends on #12` in the description.
 
 ## Tracking your progress
 
@@ -155,6 +202,10 @@ Edits made in the dashboard stay in your browser; they are not written back to G
 | `Ctrl+S` / `Cmd+S` | Save to this browser |
 | `Enter` | Confirm an inline edit |
 | `Esc` | Cancel an edit or close a dialog |
+
+## Open design decisions
+
+The next round of features, such as progress without story points, stale-work alerts, real sprint dates and full assignee credit, depends on choices the team still has to make. They are laid out as a decision tree in [`docs/HANDOFF-telemetry-decisions.md`](docs/HANDOFF-telemetry-decisions.md). Record the team's choices there; the next change builds only what is marked *Decided*.
 
 ## Contributors
 
