@@ -101,6 +101,10 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
 .card-h .sub{color:var(--muted);font-size:12px}
 .pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:1px 8px;border-radius:20px;border:1px solid var(--border);color:var(--muted);white-space:nowrap;line-height:18px}
 .sp{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:18px;padding:0 6px;border-radius:20px;background:var(--border2);color:var(--text);font-size:11px;font-weight:700;border:1px solid var(--border)}
+.sp.none{background:none;border-style:dashed;color:var(--faint);font-weight:600}
+.sp.roll{background:none;color:var(--muted)}
+.ktag{font-size:10px;font-weight:700;letter-spacing:.02em;padding:0 6px;border-radius:4px;line-height:16px;flex:none;color:color-mix(in srgb,var(--k) 80%,var(--text));background:color-mix(in srgb,var(--k) 16%,transparent);border:1px solid color-mix(in srgb,var(--k) 40%,transparent)}
+.sub-of{font-size:11px;color:var(--faint);flex:none}
 .lbl{font-size:11px;padding:0 7px;border-radius:20px;font-weight:600;line-height:18px;border:1px solid transparent}
 
 /* ---------- KPI strip ---------- */
@@ -372,6 +376,8 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
       <div class="field"><label for="fAssignee">Assignee</label><select id="fAssignee"></select></div>
       <div class="field"><label for="fStatus">Status</label><select id="fStatus"></select></div>
       <div class="field"><label for="fSp">Story points (weight)</label><select id="fSp"></select></div>
+      <div class="field"><label for="fKind">Type</label><select id="fKind"></select></div>
+      <div class="field two"><label for="fParent">Parent (issue #, for tasks and sub-tasks)</label><input id="fParent" type="text" placeholder="e.g. 7"></div>
       <div class="field"><label for="fMs">Milestone</label><select id="fMs"></select></div>
       <div class="field two"><label for="fObj">Objective</label><select id="fObj"></select></div>
       <div class="field"><label for="fStart">Start date</label><input id="fStart" type="date"></div>
@@ -712,19 +718,54 @@ async function apiAll(c,path,params,maxPages=5){
 }
 const yearAgo = () => new Date(Date.now()-365*864e5).toISOString();
 
+/* GitHub Projects (v2) fields: story points from a number field such as "Estimate" or "Story Points",
+   and the board's "Status" column. Only the GraphQL API has these, and it always needs a token
+   (a classic token also needs the read:project scope), so this quietly returns {} when it can't read them. */
+const PROJ_SP_RE = /^(?:story ?points?|points?|sp|estimate|estimation|effort|weight)$/i;
+async function gitHubProjectFields(c){
+  const tok=await getToken(c); if(!tok) return {};
+  const url=c.host==="https://github.com" ? "https://api.github.com/graphql" : c.host+"/api/graphql";
+  const [owner,name]=c.project.split("/"), out={};
+  const q=`query($o:String!,$n:String!,$a:String){repository(owner:$o,name:$n){issues(first:100,after:$a){pageInfo{hasNextPage endCursor}
+    nodes{number projectItems(first:5){nodes{fieldValues(first:30){nodes{
+      ... on ProjectV2ItemFieldNumberValue{number field{... on ProjectV2FieldCommon{name}}}
+      ... on ProjectV2ItemFieldSingleSelectValue{name field{... on ProjectV2FieldCommon{name}}}}}}}}}}}`;
+  try{
+    let after=null;
+    for(let page=0;page<5;page++){
+      const r=await fetch(url,{method:"POST",headers:{Authorization:`Bearer ${tok}`,"Content-Type":"application/json"},body:JSON.stringify({query:q,variables:{o:owner,n:name,a:after}})});
+      const d=r.ok?await r.json():null, iss=d?.data?.repository?.issues; if(!iss) break;
+      for(const n of iss.nodes) for(const it of n.projectItems.nodes) for(const v of it.fieldValues.nodes){
+        const f=v.field?.name; if(!f) continue;
+        const o=out[n.number]||(out[n.number]={});
+        const num=v.number ?? (/^\d+(?:\.\d+)?$/.test(v.name||"")?+v.name:null);
+        if(PROJ_SP_RE.test(f)&&num!=null&&o.sp==null) o.sp=num;
+        else if(/^status$/i.test(f)&&v.name&&!o.status) o.status=v.name;
+      }
+      if(!iss.pageInfo.hasNextPage) break; after=iss.pageInfo.endCursor;
+    }
+  }catch(e){}
+  return out;
+}
 const GitHubSource = { async load(c){
   const r=`/repos/${c.project}`;
   const repo=await api(c,r);
-  const [ms,all,commits]=await Promise.all([
+  const [ms,all,commits,proj]=await Promise.all([
     apiAll(c,r+"/milestones",{state:"all"}),
     apiAll(c,r+"/issues",{state:"all"}),
     apiAll(c,r+"/commits",{since:yearAgo()},3).catch(()=>[]),   // empty repos return 409
+    gitHubProjectFields(c),
   ]);
+  // native sub-issues: only issues that report having some are asked for the list
+  const subs={};
+  await Promise.all(all.filter(i=>!i.pull_request&&i.sub_issues_summary?.total>0).slice(0,60).map(i=>
+    apiAll(c,`${r}/issues/${i.number}/sub_issues`,{},1).then(l=>{ subs[i.number]=l.map(x=>x.number); }).catch(()=>{})));
   return {
     title:repo.full_name, sub:repo.description||"GitHub repository", url:repo.html_url, branch:repo.default_branch, mrPrefix:"#",
     milestones:ms.map(m=>({id:m.number, title:m.title, due:m.due_on?m.due_on.slice(0,10):null, description:m.description})),
     issues:all.filter(i=>!i.pull_request).map(i=>({id:i.number, title:i.title, description:i.body||"", assignee:i.assignee?.login, author:i.user?.login,
-      msId:i.milestone?.number, labels:i.labels.map(l=>typeof l==="string"?l:l.name), closed:i.state==="closed", createdAt:i.created_at, closedAt:i.closed_at})),
+      msId:i.milestone?.number, labels:i.labels.map(l=>typeof l==="string"?l:l.name), closed:i.state==="closed", createdAt:i.created_at, closedAt:i.closed_at,
+      type:i.type?.name||null, subs:subs[i.number]||[], sp:proj[i.number]?.sp||0, boardStatus:proj[i.number]?.status||null})),
     merges:all.filter(i=>i.pull_request?.merged_at).map(p=>({id:p.number, title:p.title, ts:p.pull_request.merged_at, actor:p.assignee?.login||p.user?.login})),
     commits:commits.map(x=>({ts:x.commit.author.date, actor:x.author?.login||x.commit.author.name, msg:x.commit.message.split("\n")[0], sha:x.sha.slice(0,7)})),
   };
@@ -748,7 +789,8 @@ const GitLabSource = { async load(c){
     milestones:ms.map(m=>({id:m.id, title:m.title, due:m.due_date||null, description:m.description})),
     issues:all.map(i=>({id:i.iid, title:i.title, description:i.description||"", assignee:(i.assignees&&i.assignees[0]||i.assignee)?.username, author:i.author?.username,
       closer:i.closed_by?.username, msId:i.milestone?.id, labels:i.labels||[], closed:i.state==="closed", createdAt:i.created_at, closedAt:i.closed_at,
-      due:i.due_date||null, sp:i.weight||0, objTitle:i.epic?.title||null, start:i.iteration?.start_date||null})),
+      due:i.due_date||null, sp:i.weight||0, objTitle:i.epic?.title||null, start:i.iteration?.start_date||null,
+      type:i.issue_type&&i.issue_type!=="issue"?i.issue_type:null})),     // every plain GitLab issue says "issue", so only the special types tell us anything
     sprints:iters.map(it=>({start:it.start_date, end:it.due_date, goal:it.title||""})),
     merges:mrs.map(m=>({id:m.iid, title:m.title, ts:m.merged_at, actor:m.merged_by?.username||m.author?.username})),
     commits:commits.map(x=>({ts:x.created_at, actor:userOf[(x.author_name||"").toLowerCase()]||x.author_name, msg:x.title, sha:x.short_id})),
@@ -756,12 +798,28 @@ const GitLabSource = { async load(c){
 }};
 
 /* Turn a provider's raw lists into the dashboard's shapes.
-   Conventions read from labels: "sp: 5" / "5 SP" → story points,
-   "objective::Name" → objective, "in progress" / "review" / "ready" → status,
+   Item type (user story / issue / task / sub-task): the provider's issue type, else a title
+   prefix like "User Story - …" or "Task: …", else a label such as "story" or "task".
+   Parent links: GitHub sub-issues, "Parent: #7" / "Part of #7" in the description, or a
+   task list "- [ ] #12" in the parent's description.
+   Story points: GitLab weight or a GitHub Project field ("Estimate", "Story Points"), else a label
+   "sp: 5" / "5 SP", else "Story points: 5" / "Estimate: 5" in the description. Nothing found = not estimated.
+   Objective: an "objective::Name" label or GitLab epic, else the item's type ("User Stories", "Tasks", …);
+   sub-items sit in their parent's objective so they can be shown under it.
+   Labels "in progress" / "review" / "ready" (or the GitHub Project's Status column) → status,
    and "blocked by #12" / "depends on #12" in the description → blockers. */
 const MS_COLORS = ["#bc8cff","#58a6ff","#f778ba","#e3b341","#3fb950","#ff9b6b","#56d4dd","#db61a2"];
 const SP_RE = /^(?:sp|story ?points?|points?|pts|weight|estimate)\s*[:=]{0,2}\s*(\d+)$|^(\d+)\s*(?:sp|pts?|points?)$/i;
+const SP_BODY_RE = /(?:story ?points?|estimat(?:e|ion)(?: of effort)?|\bsp)\b[\s*_#:=-]*(\d{1,3})\b(?!\s*(?:h|hrs?|hours?|d|days?|w|wks?|weeks?)\b)/i;
 const OBJ_RE = /^(?:objective|epic)\s*:{1,2}\s*(.+)$/i;
+const KIND_RE = [["subtask",/^\W*sub[- ]?(?:tasks?|issues?)\b/i],["story",/^\W*(?:user ?)?stor(?:y|ies)\b/i],["task",/^\W*tasks?\b/i],["issue",/^\W*(?:issues?|bugs?|defects?)\b/i]];
+const PARENT_RE = /(?:parent(?: issue| story)?|part of|sub-?(?:task|issue) of|child of)\s*:?\s*#(\d+)/i;
+const TASKLIST_RE = /^\s*[-*]\s*\[[ xX]\]\s*#(\d+)/gm;
+function kindOf(type,title,labels){
+  for(const s of [type,title]) if(s) for(const [k,re] of KIND_RE) if(re.test(s)) return k;
+  for(const [k,re] of KIND_RE) if(labels.some(l=>re.test(l))) return k;
+  return "issue";
+}
 function statusOf(labels,closed){
   if(closed) return "done";
   const s=labels.join(" | ").toLowerCase();
@@ -779,8 +837,13 @@ function normalizeLive(raw,provider){
     note:(m.description||"").split("\n")[0].trim().slice(0,60)||(m.due?"":"Date TBD")}));
   const msIds=new Set(milestones.map(m=>m.id)), ids=new Set(raw.issues.map(i=>i.id));
   let loose=null;
-  const objectives=[], objIdx={};
-  const objFor=(ms,title)=>{ const k=ms+"|"+title; if(!objIdx[k]){ objectives.push({id:objectives.length+1, ms, title}); objIdx[k]=objectives.length; } return objIdx[k]; };
+  // parent links; the first one found for a child wins, and loops are dropped
+  const parentOf={};
+  const link=(child,parent)=>{ if(child!==parent&&ids.has(child)&&ids.has(parent)&&!parentOf[child]) parentOf[child]=parent; };
+  raw.issues.forEach(r=>(r.subs||[]).forEach(k=>link(k,r.id)));
+  raw.issues.forEach(r=>{ const m=r.description.match(PARENT_RE); if(m) link(r.id,+m[1]); });
+  raw.issues.forEach(r=>{ for(const m of r.description.matchAll(TASKLIST_RE)) link(+m[1],r.id); });
+  for(const id of Object.keys(parentOf)){ const seen=new Set([+id]); for(let p=parentOf[id];p;p=parentOf[p]){ if(seen.has(p)){ delete parentOf[id]; break; } seen.add(p); } }
   const ev=[];
   const E=(when,actor,type,text,issue,meta)=>{ if(when) ev.push({ts:ts(when), actor:who(actor), type, text, issue:issue??null, meta:meta||null}); };
 
@@ -793,6 +856,7 @@ function normalizeLive(raw,provider){
     const ms=milestones.find(m=>m.id===msId);
     let sp=r.sp||0, obj=r.objTitle||null; const labels=[];
     for(const l of r.labels){ const a=l.match(SP_RE), b=l.match(OBJ_RE); if(a) sp=sp||+(a[1]||a[2]); else if(b) obj=obj||b[1].trim(); else labels.push(l); }
+    if(!sp){ const m=r.description.match(SP_BODY_RE); if(m) sp=+m[1]; }
     const closedAt=r.closed?day(r.closedAt):null;
     const start=r.start||day(r.createdAt);
     let end=r.closed?closedAt:(r.due||ms.due||null);
@@ -804,9 +868,22 @@ function normalizeLive(raw,provider){
     const assignee=r.assignee?who(r.assignee):"Team";
     E(r.createdAt,r.author,"issue_created",`opened issue #${r.id} ${r.title}`,r.id);
     if(r.closed) E(r.closedAt,r.closer||r.assignee||r.author,"issue_closed",`closed issue #${r.id} ${r.title}`,r.id);
-    return {id:r.id, title:r.title, description:r.description, assignee, ms:msId, obj:objFor(msId,obj||"Issues"), sp:sp||1,
-      start, end, status:statusOf(r.labels,r.closed), tbd, deps:[...new Set(deps)], labels, closedAt};
+    return {id:r.id, title:r.title, description:r.description, assignee, ms:msId, objTitle:obj, sp,
+      kind:kindOf(r.type,r.title,r.labels), parent:parentOf[r.id]||null,
+      start, end, status:statusOf(r.boardStatus?[...r.labels,r.boardStatus]:r.labels,r.closed), tbd, deps:[...new Set(deps)], labels, closedAt};
   });
+  // objectives: explicit ones first (in issue order), then one per item type in KINDS order;
+  // a sub-item takes its top parent's objective when they share a milestone
+  const byNum={}; issues.forEach(i=>byNum[i.id]=i);
+  const groups={};
+  for(const i of [...issues].sort((a,b)=>a.id-b.id)){
+    let top=i; while(top.parent&&byNum[top.parent]) top=byNum[top.parent];
+    const src=top.ms===i.ms?top:i;
+    const [rank,title]=src.objTitle?[0,src.objTitle]:[1+KINDS.findIndex(k=>k[0]===src.kind),KIND[src.kind].group];
+    const key=i.ms+"|"+title; (groups[key]=groups[key]||{ms:i.ms,title,rank,items:[]}).items.push(i);
+  }
+  const objectives=Object.values(groups).sort((a,b)=>a.rank-b.rank).map((g,k)=>{ g.items.forEach(i=>i.obj=k+1); return {id:k+1, ms:g.ms, title:g.title}; });
+  issues.forEach(i=>delete i.objTitle);
   raw.merges.forEach(m=>E(m.ts,m.actor,"mr_merged",`merged ${raw.mrPrefix}${m.id} "${m.title}"`,null));
   raw.commits.forEach(x=>{ const ref=(x.msg.match(/#(\d+)/)||[])[1]; E(x.ts,x.actor,"commit",x.msg,ref&&ids.has(+ref)?+ref:null,{sha:x.sha, branch:raw.branch||"main"}); });
   ev.sort((a,b)=>a.ts<b.ts?1:a.ts>b.ts?-1:0); ev.forEach((e,k)=>e.id=ev.length-k);
@@ -829,7 +906,7 @@ function normalizeLive(raw,provider){
   const members=Object.keys(count).sort((a,b)=>count[b]-count[a]).map(name=>({name,
     role:[assigned[name]?`${assigned[name]} issue${assigned[name]>1?"s":""}`:"",commits[name]?`${commits[name]} commit${commits[name]>1?"s":""}`:""].filter(Boolean).join(" · ")||"Contributor"}));
 
-  return { asOf:t, source:provider, project:{name:raw.title, sub:raw.sub, url:raw.url}, members,
+  return { asOf:t, source:provider, format:LIVE_FORMAT, project:{name:raw.title, sub:raw.sub, url:raw.url}, members,
     milestones, objectives, sprints, issues, events:ev, nextEventId:ev.length+1 };
 }
 async function fetchProject(c){
@@ -861,6 +938,10 @@ function applyMembers(){
 const STATUSES = [["todo","Backlog","#768390"],["ready","Ready","#58a6ff"],["progress","In Progress","#d29922"],["review","In Review","#bc8cff"],["done","Done","#3fb950"]];
 const ST = Object.fromEntries(STATUSES.map(([k,l,c])=>[k,{label:l,color:c}]));
 const SP_SCALE = [1,2,3,5,8,13,21];
+// item types: [key, label, objective name used when grouping by type, color]
+const KINDS = [["story","User Story","User Stories","#3fb950"],["issue","Issue","Issues","#d29922"],["task","Task","Tasks","#58a6ff"],["subtask","Sub-task","Sub-tasks","#bc8cff"]];
+const KIND = Object.fromEntries(KINDS.map(([k,label,group,color])=>[k,{label,group,color}]));
+const LIVE_FORMAT = 2;   // bump when normalizeLive changes shape, so older saved copies can be flagged
 const LABEL_COLORS = {web:"#3987e5",api:"#d95926",mobile:"#199e70",devops:"#c98500",design:"#8957e5",docs:"#6e7781",test:"#2da44e",security:"#da3633"};
 const LS_KEY = "pm_dashboard_v3", LS_UI = "pm_dashboard_ui_v3";
 const DAY = 864e5;
@@ -1027,6 +1108,30 @@ const nowISO = () => { const d=new Date(); return iso(d)+"T"+String(d.getHours()
 function today(){ const t=iso(new Date()); return (t>=S.sprints[0].start && t<=S.sprints[S.sprints.length-1].end) ? t : S.asOf; }
 function sprintAt(d){ return S.sprints.find(s=>d>=s.start&&d<=s.end) || null; }
 function isLate(i){ return i.status!=="done" && i.end < today() && !i.tbd; }
+// every view uses this one rule for "in a sprint": the item is due inside it
+const dueIn = (i,sp) => i.end>=sp.start && i.end<=sp.end;
+
+/* ---------- story points ----------
+   Points are counted once per tree: an estimated item counts for itself and everything under it,
+   so an estimated story's tasks don't add to totals again. Unestimated parents show the total
+   of their sub-items. 0 means "not estimated". */
+const kidsOf = id => S.issues.filter(i=>i.parent===id);
+function ancestors(i){ const out=[]; for(let p=byId(i.parent); p&&out.length<20&&!out.includes(p); p=byId(p.parent)) out.push(p); return out; }
+const spCounts = i => !!i.sp && !ancestors(i).some(p=>p.sp);
+const spOf = i => spCounts(i) ? i.sp : 0;
+const spSum = list => list.reduce((a,i)=>a+spOf(i),0);
+function spRoll(i,seen=new Set()){ if(i.sp||seen.has(i.id)) return i.sp||0; seen.add(i.id); return kidsOf(i.id).reduce((a,k)=>a+spRoll(k,seen),0); }
+// items with no estimate of their own, none above them, and no sub-items carrying one
+const unestimated = list => list.filter(i=>!i.sp && !spRoll(i) && !ancestors(i).some(p=>p.sp));
+function spBadge(i){
+  if(i.sp) return `<span class="sp"${spCounts(i)?"":` data-tip="Counted in #${ancestors(i).find(p=>p.sp).id}'s estimate"`}>${i.sp}</span>`;
+  const r=spRoll(i);
+  return r ? `<span class="sp roll" data-tip="Total of sub-items">${r}</span>` : `<span class="sp none" data-tip="Not estimated">–</span>`;
+}
+function spOptions(v){ return [0,...new Set([...SP_SCALE,v||0])].filter((n,k)=>k===0||n).sort((a,b)=>a-b).map(n=>`<option value="${n}" ${n===(v||0)?"selected":""}>${n||"– (not estimated)"}</option>`).join(""); }
+// "User Story - Define scope" → "Define scope" once the type is shown as a tag
+const shortTitle = i => i.kind ? (i.title.replace(/^\W*(?:user\s*stor(?:y|ies)|stor(?:y|ies)|sub[- ]?(?:tasks?|issues?)|tasks?|issues?|bugs?|defects?)\s*[-–—:|]\s*/i,"")||i.title) : i.title;
+const kindTag = i => KIND[i.kind] ? `<span class="ktag" style="--k:${KIND[i.kind].color}">${KIND[i.kind].label}</span>` : "";
 function logEvent(type,text,issue,meta){
   const e={id:S.nextEventId++, ts:nowISO(), actor:ui.viewer, type, text, issue:issue??null, meta:meta||null, user:true};
   S.events.unshift(e); markDirty(); return e;
@@ -1070,12 +1175,12 @@ function renderLegend(){
 function stats(){
   const t=today(), sp=sprintAt(t);
   const all=S.issues, done=all.filter(i=>i.status==="done");
-  const spTot=all.reduce((a,i)=>a+i.sp,0), spDone=done.reduce((a,i)=>a+i.sp,0);
+  const spTot=spSum(all), spDone=spSum(done);
   const next=S.milestones.filter(m=>m.due&&m.due>=t).sort((a,b)=>a.due<b.due?-1:1)[0];
-  const sprintIssues=sp?all.filter(i=>i.end>=sp.start&&i.end<=sp.end):[];
-  const sprintSp=sprintIssues.reduce((a,i)=>a+i.sp,0), sprintDone=sprintIssues.filter(i=>i.status==="done").reduce((a,i)=>a+i.sp,0);
+  const sprintIssues=sp?all.filter(i=>dueIn(i,sp)):[];
+  const sprintSp=spSum(sprintIssues), sprintDone=spSum(sprintIssues.filter(i=>i.status==="done"));
   const commitsSprint=sp?S.events.filter(e=>e.type==="commit"&&e.ts.slice(0,10)>=sp.start&&e.ts.slice(0,10)<=sp.end).length:0;
-  return {t,sp,all,done,spTot,spDone,next,sprintSp,sprintDone,sprintIssues,commitsSprint,late:all.filter(isLate)};
+  return {t,sp,all,done,spTot,spDone,next,sprintSp,sprintDone,sprintIssues,commitsSprint,late:all.filter(isLate),noEst:unestimated(all)};
 }
 function renderOverview(){
   const keep=document.querySelector(".g-scroll"); const pos=keep?{l:keep.scrollLeft,t:keep.scrollTop}:null;
@@ -1085,7 +1190,7 @@ function renderOverview(){
     <div class="kpi"><div class="k">Current sprint</div><div class="v">${s.sp?`Sprint ${s.sp.n}`:"—"}</div><div class="s">${s.sp?`${fmt(s.sp.start)} – ${fmt(s.sp.end)} · ${diff(s.t,s.sp.end)} days left`:"Outside the project window"}</div>
       <div class="meter"><i style="width:${pct(s.sprintDone,s.sprintSp)}%;background:var(--accent)"></i></div></div>
     <div class="kpi"><div class="k">Issues closed</div><div class="v">${s.done.length} <span style="color:var(--faint);font-size:14px">/ ${s.all.length}</span></div><div class="s">${pct(s.done.length,s.all.length)}% of all issues</div><div class="meter"><i style="width:${pct(s.done.length,s.all.length)}%"></i></div></div>
-    <div class="kpi"><div class="k">Story points done</div><div class="v">${s.spDone} <span style="color:var(--faint);font-size:14px">/ ${s.spTot}</span></div><div class="s">${pct(s.spDone,s.spTot)}% of planned points</div><div class="meter"><i style="width:${pct(s.spDone,s.spTot)}%"></i></div></div>
+    <div class="kpi"><div class="k">Story points done</div><div class="v">${s.spDone} <span style="color:var(--faint);font-size:14px">/ ${s.spTot}</span></div><div class="s"${s.noEst.length?` data-tip="${esc(s.noEst.map(i=>`#${i.id} ${i.title}`).slice(0,25).join("<br>"))}"`:""}>${pct(s.spDone,s.spTot)}% of planned points${s.noEst.length?` · <span style="color:var(--warn)">${s.noEst.length} not estimated</span>`:""}</div><div class="meter"><i style="width:${pct(s.spDone,s.spTot)}%"></i></div></div>
     <div class="kpi"><div class="k">Next milestone</div><div class="v" style="font-size:16px;padding-top:3px">${s.next?esc(s.next.note||s.next.title):"—"}</div><div class="s">${s.next?`${fmt(s.next.due)} · in ${diff(s.t,s.next.due)} days`:""}</div></div>
     <div class="kpi"><div class="k">Overdue</div><div class="v" style="color:${s.late.length?"var(--danger)":"var(--ok)"}">${s.late.length}</div><div class="s" data-tip="${esc(s.late.map(i=>`#${i.id} ${i.title}`).join("<br>")||"Nothing overdue")}">${s.late.length?s.late.map(i=>"#"+i.id).join(", "):"Nothing overdue"}</div></div>
     <div class="kpi"><div class="k">Commits this sprint</div><div class="v">${s.commitsSprint}</div><div class="s">${s.sp?`Sprint ${s.sp.n}`:""} · all members</div></div>
@@ -1156,7 +1261,15 @@ function ganttHTML(){
       const oi=msIssues.filter(i=>i.obj===o.id), os=oi.filter(matchIssue);
       if(filtering && !os.length) continue;
       h+=`<div class="g-group${ui.collapsed.includes("obj-"+o.id)?" collapsed":""}" data-key="obj-${o.id}">${summaryRow(2,o,oi,X,Z,ms)}<div class="g-kids"><div class="g-kids-inner">`;
-      for(const i of os.sort((a,b)=>a.start<b.start?-1:a.start>b.start?1:a.id-b.id)) h+=issueRow(i,X,Z);
+      // items nest under their parent when it's shown in the same objective
+      const order=(a,b)=>a.start<b.start?-1:a.start>b.start?1:a.id-b.id, here=new Set(os.map(i=>i.id));
+      const tree=(i,depth,seen)=>{
+        const kids=seen.has(i.id)?[]:os.filter(k=>k.parent===i.id).sort(order); seen.add(i.id);
+        if(!kids.length) return issueRow(i,X,Z,depth,false);
+        return `<div class="g-group${ui.collapsed.includes("iss-"+i.id)?" collapsed":""}" data-key="iss-${i.id}">${issueRow(i,X,Z,depth,true)}<div class="g-kids"><div class="g-kids-inner">${kids.map(k=>tree(k,depth+1,seen)).join("")}</div></div></div>`;
+      };
+      const seen=new Set();
+      for(const i of os.filter(i=>!here.has(i.parent)).sort(order)) h+=tree(i,0,seen);
       if(!oi.length) h+=`<div class="g-row l3"><div class="g-cells"><div class="c-name" style="color:var(--faint);font-style:italic">No issues in this objective.</div><div></div><div></div><div class="c-date"></div><div class="c-date"></div></div><div class="g-track" style="width:${W}px"></div></div>`;
       h+=`</div></div></div>`;
     }
@@ -1168,7 +1281,7 @@ function ganttHTML(){
 function summaryRow(level,obj,issues,X,Z,ms){
   const W=(diff(S.sprints[0].start,S.sprints[S.sprints.length-1].end)+1)*Z;
   const color = level===1 ? obj.color : ms.color;
-  const sp=issues.reduce((a,i)=>a+i.sp,0), spDone=issues.filter(i=>i.status==="done").reduce((a,i)=>a+i.sp,0);
+  const sp=spSum(issues), spDone=spSum(issues.filter(i=>i.status==="done")), noEst=unestimated(issues).length;
   const start=issues.length?issues.reduce((a,i)=>i.start<a?i.start:a,issues[0].start):null;
   const end=issues.length?issues.reduce((a,i)=>i.end>a?i.end:a,issues[0].end):null;
   const who=[...new Set(issues.map(i=>i.assignee))].sort((a,b)=>ASSIGNEES.indexOf(a)-ASSIGNEES.indexOf(b));
@@ -1194,25 +1307,27 @@ function summaryRow(level,obj,issues,X,Z,ms){
   return `<div class="g-row l${level}"><div class="g-cells">
       <div class="c-name">${head}</div>
       <div><span class="avatars">${who.map(w=>avatar(w)).join("")}</span></div>
-      <div class="c-r"><span class="sp" data-tip="${spDone} of ${sp} story points done">${sp}</span></div>
+      <div class="c-r"><span class="sp${sp?"":" none"}" data-tip="${spDone} of ${sp} story points done${noEst?` · ${noEst} item${noEst>1?"s":""} not estimated`:""}">${sp||"–"}</span></div>
       <div class="c-date">${fmt(start)}</div>${dueCell}
     </div><div class="g-track" style="width:${W}px">${track}</div></div>`;
 }
-function issueRow(i,X,Z){
+function issueRow(i,X,Z,depth=0,hasKids=false){
   const W=(diff(S.sprints[0].start,S.sprints[S.sprints.length-1].end)+1)*Z;
   const l=X(i.start), w=Math.max((diff(i.start,i.end)+1)*Z,8);
   const cls=["bar"]; if(i.tbd)cls.push("tbd"); if(i.status==="done")cls.push("done"); if(isLate(i))cls.push("late");
-  const showTxt=w>70;
-  const tipTxt=`<b>#${i.id} ${esc(i.title)}</b><br>${esc(i.assignee)} · ${i.sp} SP · ${ST[i.status].label}<br>${fmt(i.start)} – ${fmt(i.end)}${i.tbd?" (TBD)":""}${i.deps.length?`<br>Blocked by ${i.deps.map(d=>"#"+d).join(", ")}`:""}${isLate(i)?"<br><b style='color:var(--danger)'>Overdue</b>":""}<br><span style='color:var(--faint)'>Drag to move · drag right edge to resize · click to open</span>`;
+  const showTxt=w>70, roll=spRoll(i);
+  const spTxt=i.sp?`${i.sp} SP`:roll?`${roll} SP (sub-items)`:"not estimated";
+  const tipTxt=`<b>#${i.id} ${esc(i.title)}</b><br>${KIND[i.kind]?KIND[i.kind].label+" · ":""}${esc(i.assignee)} · ${spTxt} · ${ST[i.status].label}<br>${fmt(i.start)} – ${fmt(i.end)}${i.tbd?" (TBD)":""}${i.parent?`<br>Sub-item of #${i.parent}`:""}${i.deps.length?`<br>Blocked by ${i.deps.map(d=>"#"+d).join(", ")}`:""}${isLate(i)?"<br><b style='color:var(--danger)'>Overdue</b>":""}<br><span style='color:var(--faint)'>Drag to move · drag right edge to resize · click to open</span>`;
+  const pad=52+depth*22-(hasKids?25:0);
   return `<div class="g-row l3${i.status==="done"?" done":""}" data-issue="${i.id}"><div class="g-cells">
-      <div class="c-name">${issueIcon(i)}<span class="num" data-act="open" data-id="${i.id}">#${i.id}</span><span class="nm ed" data-ed="issue:${i.id}:title" title="${esc(i.title)}">${esc(i.title)}</span></div>
+      <div class="c-name" style="padding-left:${pad}px">${hasKids?`<button class="chev" data-toggle aria-label="Show or hide sub-items">▼</button>`:""}${issueIcon(i)}<span class="num" data-act="open" data-id="${i.id}">#${i.id}</span>${kindTag(i)}${i.parent&&!depth?`<span class="sub-of" title="Sub-item of #${i.parent}">↳ #${i.parent}</span>`:""}<span class="nm ed" data-ed="issue:${i.id}:title" title="${esc(i.title)}">${esc(shortTitle(i))}</span></div>
       <div class="ed" data-ed="issue:${i.id}:assignee" style="gap:6px">${avatar(i.assignee)}<span style="font-size:12px;overflow:hidden;text-overflow:ellipsis">${esc(i.assignee)}</span></div>
-      <div class="c-r ed" data-ed="issue:${i.id}:sp"><span class="sp">${i.sp}</span></div>
+      <div class="c-r ed" data-ed="issue:${i.id}:sp">${spBadge(i)}</div>
       <div class="c-date ed" data-ed="issue:${i.id}:start">${fmt(i.start)}</div>
       <div class="c-date ed" data-ed="issue:${i.id}:end" style="${isLate(i)?"color:var(--danger);font-weight:600":""}">${fmt(i.end)}</div>
     </div><div class="g-track" style="width:${W}px">
       <div class="${cls.join(" ")}" data-bar="${i.id}" style="left:${l}px;width:${w}px;background:${mc(i.assignee)};color:${mt(i.assignee)}" data-tip="${esc(tipTxt)}">
-        <span class="bsp">${i.sp}</span>${showTxt?`<span class="btxt">${i.status==="done"?"✓ ":""}${esc(i.assignee==="Team"?i.title:i.assignee+" · "+i.title)}</span>`:""}<span class="rh"></span>
+        <span class="bsp">${i.sp||roll||"–"}</span>${showTxt?`<span class="btxt">${i.status==="done"?"✓ ":""}${esc(i.assignee==="Team"?shortTitle(i):i.assignee+" · "+shortTitle(i))}</span>`:""}<span class="rh"></span>
       </div></div></div>`;
 }
 function wireOverview(){
@@ -1229,8 +1344,9 @@ function wireOverview(){
 // outline levels: collapse = milestones only, summary = milestones + objectives, expand = everything
 function setLevel(lv){
   const groups=[...document.querySelectorAll("#gantt .g-group")];
-  groups.forEach(gr=>{ const isObj=gr.dataset.key.startsWith("obj-");
-    gr.classList.toggle("collapsed", lv==="collapse" ? true : lv==="summary" ? isObj : false); });
+  // sub-item groups (iss-) stay open unless collapsed by hand, so expanding a milestone later shows the full tree
+  groups.forEach(gr=>{ const k=gr.dataset.key, isObj=k.startsWith("obj-"), isIss=k.startsWith("iss-");
+    gr.classList.toggle("collapsed", isIss ? false : lv==="collapse" ? true : lv==="summary" ? isObj : false); });
   ui.collapsed=groups.filter(gr=>gr.classList.contains("collapsed")).map(gr=>gr.dataset.key); saveUI();
 }
 function setAll(collapse){
@@ -1255,6 +1371,7 @@ function ganttClick(e){
   if(e.target.closest(".bar")) return; // handled by pointer logic
   const row=e.target.closest(".g-row");
   if(!row) return;
+  if(e.target.closest("[data-toggle]")) return toggleGroup(row.parentElement);
   if(row.classList.contains("l3")){ if(row.dataset.issue && e.target.closest(".g-cells")) openIssue(+row.dataset.issue); return; }
   if(e.target.closest("[data-toggle]")||e.target.closest(".g-cells")) toggleGroup(row.parentElement);
 }
@@ -1290,7 +1407,7 @@ function startEdit(cell){
   cell.classList.add("editing");
   let ctl;
   if(field==="assignee") ctl=`<select>${ASSIGNEES.map(a=>`<option ${a===val?"selected":""}>${a}</option>`).join("")}</select>`;
-  else if(field==="sp") ctl=`<select>${SP_SCALE.map(n=>`<option ${n===val?"selected":""}>${n}</option>`).join("")}</select>`;
+  else if(field==="sp") ctl=`<select>${spOptions(val)}</select>`;
   else if(field==="start"||field==="end"||field==="due") ctl=`<input type="date" value="${val||""}">`;
   else ctl=`<input type="text" value="${esc(val)}">`;
   const wide = field==="title";
@@ -1323,7 +1440,7 @@ function applyEdit(kind,id,field,nv){
     const ref=`#${i.id} ${i.title}`;
     if(field==="title") logEvent("issue_updated",`renamed #${i.id} from "${ov}" to "${nv}"`,i.id);
     else if(field==="assignee") logEvent("issue_updated",`reassigned ${ref} from ${ov} to ${nv}`,i.id);
-    else if(field==="sp") logEvent("issue_updated",`changed story points of ${ref} from ${ov} to ${nv}`,i.id);
+    else if(field==="sp") logEvent("issue_updated",`changed story points of ${ref} from ${ov||"none"} to ${nv||"none"}`,i.id);
     else if(field==="end") logEvent(nv>ov?"deadline":"issue_updated",`${nv>ov?"extended":"moved"} due date of ${ref} from ${fmt(ov)} to ${fmt(nv)}`,i.id);
     else if(field==="start") logEvent("issue_updated",`moved start of ${ref} from ${fmt(ov)} to ${fmt(nv)}`,i.id);
   } else if(kind==="ms"){
@@ -1386,7 +1503,9 @@ function openIssue(id,defaults){
   $("fTitle").value=i.title; $("fDesc").value=i.description||"";
   $("fAssignee").innerHTML=ASSIGNEES.map(a=>`<option value="${a}">${a} — ${MEMBERS[a].role}</option>`).join(""); $("fAssignee").value=i.assignee;
   $("fStatus").innerHTML=STATUSES.map(([k,l])=>`<option value="${k}">${l}</option>`).join(""); $("fStatus").value=i.status;
-  $("fSp").innerHTML=SP_SCALE.map(n=>`<option>${n}</option>`).join(""); $("fSp").value=i.sp;
+  $("fSp").innerHTML=spOptions(i.sp);
+  $("fKind").innerHTML=`<option value="">—</option>`+KINDS.map(([k,l])=>`<option value="${k}">${l}</option>`).join(""); $("fKind").value=i.kind||"";
+  $("fParent").value=i.parent||"";
   $("fMs").innerHTML=S.milestones.map(m=>`<option value="${m.id}">${esc(m.title)}</option>`).join(""); $("fMs").value=i.ms;
   fillObj(i.ms,i.obj);
   $("fStart").value=i.start; $("fEnd").value=i.end; $("fTbd").checked=!!i.tbd;
@@ -1407,7 +1526,16 @@ function saveIssue(){
   const rec={title, description:$("fDesc").value, assignee:$("fAssignee").value, status:$("fStatus").value, sp:+$("fSp").value,
     ms:+$("fMs").value, obj:+$("fObj").value||null, start, end, tbd:$("fTbd").checked,
     deps:$("fDeps").value.split(",").map(x=>parseInt(x,10)).filter(x=>!isNaN(x)),
-    labels:$("fLabels").value.split(",").map(x=>x.trim()).filter(Boolean)};
+    labels:$("fLabels").value.split(",").map(x=>x.trim()).filter(Boolean),
+    kind:$("fKind").value||null, parent:parseInt($("fParent").value.replace("#",""),10)||null};
+  if(rec.parent){
+    const p=byId(rec.parent);
+    if(!p){ toast(`There's no issue #${rec.parent}`); $("fParent").focus(); return; }
+    if(editing!==null&&(p.id===editing||ancestors(p).some(a=>a.id===editing))){ toast(`#${p.id} is under this issue, so it can't be its parent`); $("fParent").focus(); return; }
+    // a new parent in the same milestone brings the item into its objective, so it shows under it
+    const old=editing===null?null:byId(editing).parent;
+    if(rec.parent!==old&&p.ms===rec.ms) rec.obj=p.obj;
+  }
   if(!rec.obj){ const id=Math.max(0,...S.objectives.map(o=>o.id))+1; S.objectives.push({id,ms:rec.ms,title:"General"}); rec.obj=id; }
   if(editing===null){
     rec.id=nextId(); rec.closedAt=rec.status==="done"?today():null; S.issues.push(rec);
@@ -1419,7 +1547,9 @@ function saveIssue(){
     if(rec.end>i.end) logEvent("deadline",`extended due date of ${ref} from ${fmt(i.end)} to ${fmt(rec.end)}`,i.id);
     else if(rec.end<i.end||rec.start!==i.start) changes.push("dates");
     if(i.assignee!==rec.assignee) logEvent("issue_updated",`reassigned ${ref} from ${i.assignee} to ${rec.assignee}`,i.id);
-    if(i.sp!==rec.sp) logEvent("issue_updated",`changed story points of ${ref} from ${i.sp} to ${rec.sp}`,i.id);
+    if((i.sp||0)!==rec.sp) logEvent("issue_updated",`changed story points of ${ref} from ${i.sp||"none"} to ${rec.sp||"none"}`,i.id);
+    if((i.kind||null)!==rec.kind) changes.push("type");
+    if((i.parent||null)!==rec.parent) changes.push("parent");
     if(i.title!==rec.title) changes.push("title");
     if(i.description!==rec.description) changes.push("description");
     if(i.ms!==rec.ms||i.obj!==rec.obj) changes.push("milestone/objective");
@@ -1441,7 +1571,7 @@ function setStatus(i,ns,quiet){
 function deleteIssue(){
   if(editing===null) return; const i=byId(editing);
   if(!confirm(`Delete issue #${i.id} "${i.title}"? This is recorded in the activity log.`)) return;
-  S.issues=S.issues.filter(x=>x.id!==i.id); S.issues.forEach(x=>x.deps=x.deps.filter(d=>d!==i.id));
+  S.issues=S.issues.filter(x=>x.id!==i.id); S.issues.forEach(x=>{ x.deps=x.deps.filter(d=>d!==i.id); if(x.parent===i.id) x.parent=i.parent||null; });
   logEvent("issue_deleted",`deleted issue #${i.id} ${i.title}`,i.id);
   closeOverlays(); render(); toast("Issue deleted · remember to Save");
 }
@@ -1451,8 +1581,8 @@ let editingSprint=null;
 function openSprint(n){
   const sp=S.sprints.find(s=>s.n===n); editingSprint=n;
   $("sTitle").textContent=`Edit Sprint ${n}`; $("sGoal").value=sp.goal||""; $("sStart").value=sp.start; $("sEnd").value=sp.end;
-  const cnt=S.issues.filter(i=>i.end>=sp.start&&i.end<=sp.end);
-  $("sHint").innerHTML=`${cnt.length} issues (${cnt.reduce((a,i)=>a+i.sp,0)} SP) are due in this sprint. Moving the end date shifts the start of the next sprint so sprints never overlap.`;
+  const cnt=S.issues.filter(i=>dueIn(i,sp));
+  $("sHint").innerHTML=`${cnt.length} issues (${spSum(cnt)} SP) are due in this sprint. Moving the end date shifts the start of the next sprint so sprints never overlap.`;
   $("ovSprint").classList.add("open");
 }
 function saveSprint(){
@@ -1585,20 +1715,20 @@ function dailyStack(){
 function renderBoard(){
   const keep=document.querySelector(".pane"); const sl=keep?keep.scrollLeft:0;
   const cur=sprintAt(today());
-  const list=S.issues.filter(i=>(ui.boardMs==="all"||i.ms===+ui.boardMs||(ui.boardMs==="sprint"&&cur&&i.start<=cur.end&&i.end>=cur.start))&&(ui.boardWho==="all"||i.assignee===ui.boardWho));
+  const list=S.issues.filter(i=>(ui.boardMs==="all"||i.ms===+ui.boardMs||(ui.boardMs==="sprint"&&cur&&dueIn(i,cur)))&&(ui.boardWho==="all"||i.assignee===ui.boardWho));
   let h=`<div class="toolbar">
      <select class="sel" id="bMs"><option value="all">All milestones</option><option value="sprint" ${ui.boardMs==="sprint"?"selected":""}>Current sprint${cur?` (Sprint ${cur.n})`:""}</option>${S.milestones.map(m=>`<option value="${m.id}" ${String(ui.boardMs)===String(m.id)?"selected":""}>${esc(m.title)}</option>`).join("")}</select>
      <select class="sel" id="bWho"><option value="all">Everyone</option>${ASSIGNEES.map(a=>`<option ${ui.boardWho===a?"selected":""}>${a}</option>`).join("")}</select>
-     <span class="hint">${list.length} issues · ${list.reduce((a,i)=>a+i.sp,0)} SP · drag cards between columns to change status</span></div>
+     <span class="hint">${list.length} issues · ${spSum(list)} SP · drag cards between columns to change status</span></div>
    <div class="pane"><div class="board">`;
   for(const [key,label,color] of STATUSES){
     const col=list.filter(i=>i.status===key).sort((a,b)=>a.end<b.end?-1:a.end>b.end?1:a.id-b.id);
-    h+=`<div class="bcol"><h3><span style="color:${color}">●</span>${label}<span class="pill" style="margin-left:auto">${col.reduce((a,i)=>a+i.sp,0)} SP</span><span class="cnt" style="margin-left:0">${col.length}</span></h3><div class="list" data-col="${key}">`;
+    h+=`<div class="bcol"><h3><span style="color:${color}">●</span>${label}<span class="pill" style="margin-left:auto">${spSum(col)} SP</span><span class="cnt" style="margin-left:0">${col.length}</span></h3><div class="list" data-col="${key}">`;
     if(!col.length) h+=`<div class="empty" style="padding:16px;font-size:12px">No issues</div>`;
     for(const i of col){ const ms=msById(i.ms);
       h+=`<div class="kcard" draggable="true" data-id="${i.id}" style="border-left-color:${mc(i.assignee)}">
-        <div class="ctop">${issueIcon(i)}<span>#${i.id}</span><span class="pill" style="color:${ms.color};border-color:color-mix(in srgb,${ms.color} 45%,transparent)">M${i.ms}</span>${i.tbd?`<span style="color:var(--warn);font-weight:600">TBD</span>`:""}${isLate(i)?`<span style="color:var(--danger);font-weight:600">Overdue</span>`:""}<span class="sp" style="margin-left:auto" title="Story points">${i.sp}</span></div>
-        <div class="cname">${esc(i.title)}</div>
+        <div class="ctop">${issueIcon(i)}<span>#${i.id}</span>${kindTag(i)}<span class="pill" style="color:${ms.color};border-color:color-mix(in srgb,${ms.color} 45%,transparent)">M${i.ms}</span>${i.tbd?`<span style="color:var(--warn);font-weight:600">TBD</span>`:""}${isLate(i)?`<span style="color:var(--danger);font-weight:600">Overdue</span>`:""}<span style="margin-left:auto">${spBadge(i)}</span></div>
+        <div class="cname" title="${esc(i.title)}">${esc(shortTitle(i))}${i.parent?` <span class="sub-of">↳ #${i.parent}</span>`:""}</div>
         <div class="cbot">${avatar(i.assignee)}${esc(i.assignee)}${i.labels.slice(0,2).map(labelHTML).join("")}<span style="margin-left:auto;color:var(--faint)" title="Due">${fmt(i.end)}</span></div></div>`; }
     h+=`</div></div>`;
   }
@@ -1624,12 +1754,13 @@ function renderBoard(){
    ===================================================================== */
 function renderAnalytics(){
   const s=stats();
-  const memRows=PEOPLE.concat("Team").map(p=>{
+  // anyone with assigned work gets a row, so member totals add up to the project total
+  const memRows=[...new Set([...PEOPLE,"Team",...S.issues.map(i=>i.assignee)])].map(p=>{
     const mine=S.issues.filter(i=>i.assignee===p), ev=S.events.filter(e=>e.actor===p);
     const done=mine.filter(i=>i.status==="done");
     const onTime=done.filter(i=>i.closedAt&&i.closedAt<=i.end).length;
-    return {p, issues:mine.length, done:done.length, spDone:done.reduce((a,i)=>a+i.sp,0), spOpen:mine.filter(i=>i.status!=="done").reduce((a,i)=>a+i.sp,0),
-      active:mine.filter(i=>i.status==="progress"||i.status==="review").reduce((a,i)=>a+i.sp,0), commits:ev.filter(e=>e.type==="commit").length,
+    return {p, issues:mine.length, done:done.length, spDone:spSum(done), spOpen:spSum(mine.filter(i=>i.status!=="done")),
+      active:spSum(mine.filter(i=>i.status==="progress"||i.status==="review")), commits:ev.filter(e=>e.type==="commit").length,
       comments:ev.filter(e=>e.type==="comment").length, mrs:ev.filter(e=>e.type==="mr_merged").length, onTime:done.length?Math.round(onTime/done.length*100):null};
   });
   const sprintOpts=`<option value="sprint" ${ui.burn==="sprint"?"selected":""}>Current sprint${s.sp?` (Sprint ${s.sp.n})`:""}</option>`+S.milestones.map(m=>`<option value="ms${m.id}" ${ui.burn==="ms"+m.id?"selected":""}>${esc(m.title)}</option>`).join("");
@@ -1675,12 +1806,13 @@ function openZoom(card){
 }
 function burndown(){
   const t=today(); let scope, a, b, title;
-  if(ui.burn==="sprint"||!ui.burn.startsWith("ms")){ const sp=sprintAt(t)||S.sprints[0]; scope=S.issues.filter(i=>i.end>=sp.start&&i.end<=sp.end); a=sp.start; b=sp.end; title=`Sprint ${sp.n}`; }
+  if(ui.burn==="sprint"||!ui.burn.startsWith("ms")){ const sp=sprintAt(t)||S.sprints[0]; scope=S.issues.filter(i=>dueIn(i,sp)); a=sp.start; b=sp.end; title=`Sprint ${sp.n}`; }
   else { const m=msById(+ui.burn.slice(2)); scope=S.issues.filter(i=>i.ms===m.id); if(!scope.length) return `<div class="empty">No issues in this milestone.</div>`; a=scope.reduce((x,i)=>i.start<x?i.start:x,scope[0].start); b=m.due||scope.reduce((x,i)=>i.end>x?i.end:x,scope[0].end); title=m.title; }
   if(!scope.length) return `<div class="empty">No issues are due in this sprint.</div>`;
-  const total=scope.reduce((x,i)=>x+i.sp,0), n=diff(a,b);
+  const total=spSum(scope), n=diff(a,b);
+  if(!total) return `<div class="empty">No story points are estimated for ${esc(title)} yet (${scope.length} issues).</div>`;
   const W=640,H=240,L=34,R=12,TP=10,B=24, x=k=>L+(W-L-R)*k/Math.max(1,n), y=v=>TP+(H-TP-B)*(1-v/total);
-  const pts=[]; for(let k=0;k<=n;k++){ const d=addD(a,k); if(d>t) break; const rem=total-scope.filter(i=>i.closedAt&&i.closedAt<=d).reduce((s,i)=>s+i.sp,0); pts.push({k,d,rem}); }
+  const pts=[]; for(let k=0;k<=n;k++){ const d=addD(a,k); if(d>t) break; const rem=total-spSum(scope.filter(i=>i.closedAt&&i.closedAt<=d)); pts.push({k,d,rem}); }
   let g=""; for(let q=0;q<=4;q++){ const v=Math.round(total*q/4); g+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`; }
   const step=Math.max(1,Math.ceil(n/7)); for(let k=0;k<=n;k+=step) g+=`<text x="${x(k)}" y="${H-6}" text-anchor="middle">${fmt(addD(a,k))}</text>`;
   const actual=pts.map((p,j)=>`${j?"L":"M"}${x(p.k)},${y(p.rem)}`).join("");
@@ -1696,8 +1828,8 @@ function burndown(){
 function velocity(){
   const t=today();
   return S.sprints.filter(sp=>sp.start<=t).map(sp=>({n:sp.n, closed:sp.end<t,
-    committed:S.issues.filter(i=>i.end>=sp.start&&i.end<=sp.end).reduce((a,i)=>a+i.sp,0),
-    completed:S.issues.filter(i=>i.closedAt&&i.closedAt>=sp.start&&i.closedAt<=sp.end).reduce((a,i)=>a+i.sp,0)}));
+    committed:spSum(S.issues.filter(i=>dueIn(i,sp))),
+    completed:spSum(S.issues.filter(i=>i.closedAt&&i.closedAt>=sp.start&&i.closedAt<=sp.end))}));
 }
 function velocityChart(v){
   if(!v.length) return `<div class="empty">No sprints have started yet.</div>`;
@@ -1729,7 +1861,7 @@ function workload(rows){
 }
 function statusDist(){
   const tot=S.issues.length||1; let acc=0, segs="", rows="";
-  for(const [k,l,c] of STATUSES){ const n=S.issues.filter(i=>i.status===k).length, sp=S.issues.filter(i=>i.status===k).reduce((a,i)=>a+i.sp,0); const w=n/tot*100;
+  for(const [k,l,c] of STATUSES){ const n=S.issues.filter(i=>i.status===k).length, sp=spSum(S.issues.filter(i=>i.status===k)); const w=n/tot*100;
     if(n) segs+=`<div style="width:calc(${w}% - 2px);background:${c};height:100%;border-radius:3px" data-tip="<b>${l}</b><br>${n} issues · ${sp} SP"></div>`;
     rows+=`<tr><td><span style="color:${c}">●</span> ${l}</td><td class="n">${n}</td><td class="n">${sp} SP</td><td class="n">${Math.round(w)}%</td></tr>`; acc+=w; }
   return `<div style="display:flex;gap:2px;height:22px;margin:6px 0 14px">${segs}</div><table class="tbl"><tbody>${rows}</tbody></table>`;
@@ -1793,7 +1925,8 @@ async function openProject(c,fresh){
   }
   saveUI();
   const time=d=>new Date(d).toLocaleString([], {month:"short", day:"numeric", hour:"numeric", minute:"2-digit"});
-  lastStatus = data===saved ? `Saved copy${S.savedAt?" from "+time(S.savedAt):""}`
+  const stale = data===saved && c && S.format!==LIVE_FORMAT;   // saved before types, sub-items and estimates were read
+  lastStatus = data===saved ? `Saved copy${S.savedAt?" from "+time(S.savedAt):""}${stale?` · made by an older version, use Reload from ${PROVIDER_NAME[c.provider]} to pick up story types and points`:""}`
     : c ? `Live from ${PROVIDER_NAME[c.provider]} · ${time(Date.now())}` : `Mock data · snapshot ${fmt(S.asOf)}`;
   $("btnReset").textContent = c ? `Reload from ${PROVIDER_NAME[c.provider]}` : "Reset to mock data";
   status(); render(); renderRecent();
@@ -1855,7 +1988,8 @@ function tokenHelp(provider,host){
       <li><b>Permissions → Repository permissions:</b> set <b>Contents</b>, <b>Issues</b> and <b>Pull requests</b> to <b>Read-only</b>.</li>
       <li>Click <b>Generate token</b>, copy it (it starts with <code>github_pat_</code>) and paste it in the box above. GitHub shows it <b>only once</b>.</li>
     </ol>
-    <p class="hint">Organization not listed, or the token says it's waiting for approval? Ask your instructor or the organization owner to approve it. As a fallback, a <a href="${esc(base)}/settings/tokens/new?description=UIW-PMD%20dashboard&scopes=repo" target="_blank" rel="noopener">classic token</a> with the <b>repo</b> scope also works.</p>
+    <p class="hint">Organization not listed, or the token says it's waiting for approval? Ask your instructor or the organization owner to approve it. As a fallback, a <a href="${esc(base)}/settings/tokens/new?description=UIW-PMD%20dashboard&scopes=repo,read:project" target="_blank" rel="noopener">classic token</a> with the <b>repo</b> scope also works.</p>
+    <p class="hint"><b>Story points on a GitHub Project board?</b> To read an <b>Estimate</b> or <b>Story Points</b> field and the board's Status column, use the classic token link above (it adds <b>read:project</b>). For a project owned by an organization, a fine-grained token also works if you set <b>Organization permissions → Projects</b> to <b>Read-only</b>.</p>
     <p class="hint">Keep it secret: don't put it in your code, a commit or a chat. If it leaks, delete it on the same page and make a new one. The dashboard keeps it encrypted in this browser, deletes it when the time you chose runs out, and sends it only to GitHub.</p>
   </details>`;
 }
