@@ -13,7 +13,7 @@ The dashboard is the single file `git_project-dashboard.html`. The test project 
 
 ## Current state
 
-The last dashboard change (Oct 28, 2026) fixed item types and story points. **It is not committed yet**, so it isn't on GitHub.
+The Oct 28, 2026 dashboard change, included in the same pull request as this document, fixed item types and story points. It is already built; the team only decides on the further changes below.
 
 | Area | How it works now |
 | --- | --- |
@@ -127,7 +127,7 @@ Eleven items. Ten wait on a decision; staleness can be built now. Tier 1 uses da
 
 Build only backlog items whose decision is marked Decided, using the team's recorded Choice, not the recommendation.
 
-1. **Start:** make sure the Oct 28 change to `git_project-dashboard.html` (types, nesting, story points) is committed first. Work on a branch, not `main`.
+1. **Start:** branch from `main` after the pull request with the Oct 28 change (types, nesting, story points) is merged. Don't work on `main` directly.
 2. **File:** everything is in `git_project-dashboard.html`. Key places:
     - `GitHubSource` / `GitLabSource` and `gitHubProjectFields`: fetching
     - `normalizeLive`: mapping to dashboard shapes
