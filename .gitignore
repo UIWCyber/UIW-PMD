@@ -1,0 +1,107 @@
+# ---------- macOS ----------
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# ---------- Windows ----------
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.stackdump
+*.lnk
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# ---------- Linux ----------
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ---------- Editors and IDEs ----------
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/
+.idea/
+*.iml
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*.swn
+Session.vim
+.netrwhist
+*.code-workspace
+.fleet/
+.zed/
+
+# ---------- Node / web tooling ----------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.yarn/
+.pnpm-store/
+dist/
+build/
+.cache/
+.parcel-cache/
+.vite/
+coverage/
+
+# ---------- Python (helper scripts) ----------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# ---------- Secrets and local config ----------
+# never commit tokens; the dashboard keeps them encrypted in the browser
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.json
+.claude/settings.local.json
+
+# ---------- Logs and temp files ----------
+*.log
+*.tmp
+*.temp
+*.bak
+*.orig
+
+# ---------- Local exports and screenshots ----------
+# dashboard "Export JSON" backups and pasted screenshots stay on your machine
+project-dashboard-*.json
+Pasted *.png
+Screenshot *.png
+Screen Shot *.png
