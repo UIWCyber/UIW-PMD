@@ -721,36 +721,44 @@ const yearAgo = () => new Date(Date.now()-365*864e5).toISOString();
 /* GitHub Projects (v2) fields: story points from a number field such as "Estimate" or "Story Points",
    and the board's "Status" column. Only the GraphQL API has these, and it always needs a token
    (a classic token also needs the read:project scope), so this quietly returns {} when it can't read them. */
-const PROJ_SP_RE = /^(?:story ?points?|points?|sp|estimate|estimation|effort|weight)$/i;
+// a field whose name contains one of these words, e.g. "Estimate", "Story Points (Fibonacci)", "SP"; not "Sprint"
+const PROJ_SP_RE = /\b(?:story ?points?|points?|sp|estimates?|estimation|effort|weight)\b/i;
 async function gitHubProjectFields(c){
-  const tok=await getToken(c); if(!tok) return {};
+  const out={}; let note=null;
+  const tok=await getToken(c); if(!tok) return {fields:out, note};
   const url=c.host==="https://github.com" ? "https://api.github.com/graphql" : c.host+"/api/graphql";
-  const [owner,name]=c.project.split("/"), out={};
-  const q=`query($o:String!,$n:String!,$a:String){repository(owner:$o,name:$n){issues(first:100,after:$a){pageInfo{hasNextPage endCursor}
+  const [owner,name]=c.project.split("/");
+  const q=`query($o:String!,$n:String!,$a:String){repository(owner:$o,name:$n){projectsV2(first:1){totalCount} issues(first:100,after:$a){pageInfo{hasNextPage endCursor}
     nodes{number projectItems(first:5){nodes{fieldValues(first:30){nodes{
       ... on ProjectV2ItemFieldNumberValue{number field{... on ProjectV2FieldCommon{name}}}
       ... on ProjectV2ItemFieldSingleSelectValue{name field{... on ProjectV2FieldCommon{name}}}}}}}}}}}`;
+  const noAccess="Couldn't read the GitHub Project board, so its Estimate and Status columns are missing. The token needs Projects read access (a classic token with read:project, or Projects: Read-only on a fine-grained token).";
+  let boards=0, read=0;
   try{
     let after=null;
     for(let page=0;page<5;page++){
       const r=await fetch(url,{method:"POST",headers:{Authorization:`Bearer ${tok}`,"Content-Type":"application/json"},body:JSON.stringify({query:q,variables:{o:owner,n:name,a:after}})});
-      const d=r.ok?await r.json():null, iss=d?.data?.repository?.issues; if(!iss) break;
-      for(const n of iss.nodes) for(const it of n.projectItems.nodes) for(const v of it.fieldValues.nodes){
+      const d=r.ok?await r.json():null;
+      if(!d||d.errors?.length) note=noAccess;            // a field the token can't see comes back as an error beside partial data
+      const repo=d?.data?.repository; boards=Math.max(boards,repo?.projectsV2?.totalCount||0);
+      const iss=repo?.issues; if(!iss) break;
+      for(const n of iss.nodes) for(const it of n.projectItems?.nodes||[]) for(const v of it.fieldValues.nodes){
         const f=v.field?.name; if(!f) continue;
         const o=out[n.number]||(out[n.number]={});
         const num=v.number ?? (/^\d+(?:\.\d+)?$/.test(v.name||"")?+v.name:null);
-        if(PROJ_SP_RE.test(f)&&num!=null&&o.sp==null) o.sp=num;
-        else if(/^status$/i.test(f)&&v.name&&!o.status) o.status=v.name;
+        if(PROJ_SP_RE.test(f)&&num!=null&&o.sp==null){ o.sp=num; read++; }
+        else if(/^status$/i.test(f)&&v.name&&!o.status){ o.status=v.name; read++; }
       }
       if(!iss.pageInfo.hasNextPage) break; after=iss.pageInfo.endCursor;
     }
-  }catch(e){}
-  return out;
+  }catch(e){ note=noAccess; }
+  if(!note&&boards&&!read) note="A GitHub Project board is linked, but none of its items had an Estimate / Story Points or Status value the dashboard could read.";
+  return {fields:out, note};
 }
 const GitHubSource = { async load(c){
   const r=`/repos/${c.project}`;
   const repo=await api(c,r);
-  const [ms,all,commits,proj]=await Promise.all([
+  const [ms,all,commits,board]=await Promise.all([
     apiAll(c,r+"/milestones",{state:"all"}),
     apiAll(c,r+"/issues",{state:"all"}),
     apiAll(c,r+"/commits",{since:yearAgo()},3).catch(()=>[]),   // empty repos return 409
@@ -761,11 +769,11 @@ const GitHubSource = { async load(c){
   await Promise.all(all.filter(i=>!i.pull_request&&i.sub_issues_summary?.total>0).slice(0,60).map(i=>
     apiAll(c,`${r}/issues/${i.number}/sub_issues`,{},1).then(l=>{ subs[i.number]=l.map(x=>x.number); }).catch(()=>{})));
   return {
-    title:repo.full_name, sub:repo.description||"GitHub repository", url:repo.html_url, branch:repo.default_branch, mrPrefix:"#",
+    title:repo.full_name, sub:repo.description||"GitHub repository", url:repo.html_url, branch:repo.default_branch, mrPrefix:"#", note:board.note,
     milestones:ms.map(m=>({id:m.number, title:m.title, due:m.due_on?m.due_on.slice(0,10):null, description:m.description})),
     issues:all.filter(i=>!i.pull_request).map(i=>({id:i.number, title:i.title, description:i.body||"", assignee:i.assignee?.login, author:i.user?.login,
       msId:i.milestone?.number, labels:i.labels.map(l=>typeof l==="string"?l:l.name), closed:i.state==="closed", createdAt:i.created_at, closedAt:i.closed_at,
-      type:i.type?.name||null, subs:subs[i.number]||[], sp:proj[i.number]?.sp||0, boardStatus:proj[i.number]?.status||null})),
+      type:i.type?.name||null, subs:subs[i.number]||[], sp:board.fields[i.number]?.sp||0, boardStatus:board.fields[i.number]?.status||null})),
     merges:all.filter(i=>i.pull_request?.merged_at).map(p=>({id:p.number, title:p.title, ts:p.pull_request.merged_at, actor:p.assignee?.login||p.user?.login})),
     commits:commits.map(x=>({ts:x.commit.author.date, actor:x.author?.login||x.commit.author.name, msg:x.commit.message.split("\n")[0], sha:x.sha.slice(0,7)})),
   };
@@ -813,7 +821,9 @@ const GitLabSource = { async load(c){
    and "blocked by #12" / "depends on #12" in the description → blockers. */
 const MS_COLORS = ["#bc8cff","#58a6ff","#f778ba","#e3b341","#3fb950","#ff9b6b","#56d4dd","#db61a2"];
 const SP_RE = /^(?:sp|story ?points?|points?|pts|weight|estimate)\s*[:=]{0,2}\s*(\d+)$|^(\d+)\s*(?:sp|pts?|points?)$/i;
-const SP_BODY_RE = /(?:story ?points?|estimat(?:e|ion)(?: of effort)?|\bsp)\b[\s*_#:=-]*(\d{1,3})\b(?!\s*(?:h|hrs?|hours?|d|days?|w|wks?|weeks?)\b)/i;
+// only an explicit line: "Story points: 5", "**Estimate:** 3", "SP = 2", or a heading such as
+// "## Estimation of effort" with the number alone on the next line; mentions like "NIST SP 800-61" never match
+const SP_BODY_RE = /^[ \t>*_#-]*(?:story ?points?|estimate|estimation of effort|sp)[ \t*_]*(?:[:=]|\r?\n[ \t>*_#-]*)[ \t*_]*(\d{1,3})[ \t*_]*$/im;
 const OBJ_RE = /^(?:objective|epic)\s*:{1,2}\s*(.+)$/i;
 const KIND_RE = [["subtask",/^\W*sub[- ]?(?:tasks?|issues?)\b/i],["story",/^\W*(?:user ?)?stor(?:y|ies)\b/i],["task",/^\W*tasks?\b/i],["bug",/^\W*(?:bugs?|defects?)\b/i],["issue",/^\W*issues?\b/i]];
 const PARENT_RE = /(?:parent(?: issue| story)?|part of|sub-?(?:task|issue) of|child of)\s*:?\s*#(\d+)/i;
@@ -913,7 +923,7 @@ function normalizeLive(raw,provider){
   const members=Object.keys(count).sort((a,b)=>count[b]-count[a]).map(name=>({name,
     role:[assigned[name]?`${assigned[name]} issue${assigned[name]>1?"s":""}`:"",commits[name]?`${commits[name]} commit${commits[name]>1?"s":""}`:""].filter(Boolean).join(" · ")||"Contributor"}));
 
-  return { asOf:t, source:provider, format:LIVE_FORMAT, project:{name:raw.title, sub:raw.sub, url:raw.url}, members,
+  return { asOf:t, source:provider, format:LIVE_FORMAT, loadNote:raw.note||null, project:{name:raw.title, sub:raw.sub, url:raw.url}, members,
     milestones, objectives, sprints, issues, events:ev, nextEventId:ev.length+1 };
 }
 async function fetchProject(c){
@@ -949,7 +959,7 @@ const SP_SCALE = [1,2,3,5,8,13,21];
 // in hierarchy order: milestone → stories → tasks / issues → sub-tasks / sub-issues / bugs → untracked
 const KINDS = [["story","User Story","User Stories","#3fb950"],["task","Task","Tasks","#58a6ff"],["issue","Issue","Issues","#d29922"],["subtask","Sub-task","Sub-tasks","#bc8cff"],["bug","Bug","Bugs","#f85149"],["untracked","Untracked","Untracked","#768390"]];
 const KIND = Object.fromEntries(KINDS.map(([k,label,group,color])=>[k,{label,group,color}]));
-const LIVE_FORMAT = 5;   // bump when normalizeLive changes shape, so older saved copies can be flagged
+const LIVE_FORMAT = 6;   // bump when normalizeLive changes shape, so older saved copies can be flagged
 const LABEL_COLORS = {web:"#3987e5",api:"#d95926",mobile:"#199e70",devops:"#c98500",design:"#8957e5",docs:"#6e7781",test:"#2da44e",security:"#da3633"};
 const LS_KEY = "pm_dashboard_v3", LS_UI = "pm_dashboard_ui_v3";
 const DAY = 864e5;
@@ -1964,6 +1974,7 @@ async function openProject(c,fresh){
   const stale = data===saved && c && S.format!==LIVE_FORMAT;   // saved before types, sub-items and estimates were read
   lastStatus = data===saved ? `Saved copy${S.savedAt?" from "+time(S.savedAt):""}${stale?` · made by an older version, use Reload from ${PROVIDER_NAME[c.provider]} to pick up story types and points`:""}`
     : c ? `Live from ${PROVIDER_NAME[c.provider]} · ${time(Date.now())}` : `Mock data · snapshot ${fmt(S.asOf)}`;
+  if(c&&S.loadNote){ lastStatus+=` · ⚠ ${S.loadNote}`; toast(`⚠ ${esc(S.loadNote)}`); }
   $("btnReset").textContent = c ? `Reload from ${PROVIDER_NAME[c.provider]}` : "Reset to mock data";
   status(); render(); renderRecent();
 }

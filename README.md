@@ -189,9 +189,9 @@ A linked task appears under its story when both are in the same milestone. Other
 
 **3. Estimate in story points.** Use any one of these (first match wins):
 
-- A number field named **Estimate** or **Story Points** on your GitHub Project board (needs the token above).
+- A number field on your GitHub Project board whose name includes **Estimate**, **Story Points**, **Points** or **SP** (for example *Story Points (Fibonacci)*). This needs the token above. If the token can't read the board, the status line shows a ⚠ warning instead of quietly skipping it.
 - A label: `sp: 5`, `story points: 5` or `5 SP`.
-- A line in the description: `Story points: 5` or `Estimate: 5`. In the class issue template, replace `TBD` under **Estimation of effort** with a number.
+- A line of its own in the description: `Story points: 5`, `Estimate: 5` or `SP: 5`. In the class issue template, replace `TBD` under **Estimation of effort** with a number. Numbers mentioned in a sentence are ignored, so text like "NIST SP 800-61" or "we estimate 3 reviewers" is never read as points.
 
 On GitLab, the issue's weight is used first.
 
