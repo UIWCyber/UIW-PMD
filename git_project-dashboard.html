@@ -1128,12 +1128,12 @@ function ancestors(i){ const out=[]; for(let p=byId(i.parent); p&&out.length<20&
 const spCounts = i => !!i.sp && !ancestors(i).some(p=>p.sp);
 const spOf = i => spCounts(i) ? i.sp : 0;
 const spSum = list => list.reduce((a,i)=>a+spOf(i),0);
-// % complete for a set of items: by story points when any are estimated, otherwise by issues closed,
-// so a group with no estimates still shows real progress instead of 0%
+// % complete for a set of items: by story points only when every item is covered by an estimate;
+// otherwise by issues closed across all items (tracked or untracked), so everything done is always 100%
 function progress(list){
   const done=list.filter(i=>i.status==="done"), sp=spSum(list);
-  return sp ? {pct:Math.round(spSum(done)/sp*100), by:"story points"}
-            : {pct:list.length?Math.round(done.length/list.length*100):0, by:"issues closed (nothing estimated)"};
+  return sp&&!unestimated(list).length ? {pct:Math.round(spSum(done)/sp*100), by:"story points"}
+    : {pct:list.length?Math.round(done.length/list.length*100):0, by:sp?"issues closed (some items not estimated)":"issues closed (nothing estimated)"};
 }
 function spRoll(i,seen=new Set()){ if(i.sp||seen.has(i.id)) return i.sp||0; seen.add(i.id); return kidsOf(i.id).reduce((a,k)=>a+spRoll(k,seen),0); }
 // items with no estimate of their own, none above them, and no sub-items carrying one
