@@ -62,7 +62,7 @@ It works for a semester capstone, a class project, a club app or any small team 
 ## The four views
 
 ### 1. Overview / Gantt
-A timeline of every milestone, objective and issue, with start and due dates, story points and owners. Each item is tagged as a **User Story**, **Issue**, **Task**, **Sub-task** or **Bug**. Under each milestone, every user story is a parent row with its issues, tasks and sub-tasks nested inside it and a done/total count (click the arrow to fold them). Bugs and anything with no type sit in a red **Bugs & untriaged** section pinned above the milestones.
+A timeline of every milestone, objective and issue, with start and due dates, story points and owners. Each item is tagged as a **User Story**, **Issue**, **Task**, **Sub-task** or **Bug**. Under each milestone, every user story is a parent row with its issues, tasks and sub-tasks nested inside it and a done/total count (click the arrow to fold them). Bugs stay in their own milestone, in a red **Bugs** group listed first, open bugs on top.
 - Zoom the timeline by **Month**, **Sprint** or **Week**.
 - Switch between **Summary view**, **Collapse all** and **Expand all** to go from the big picture to the details.
 - Show or hide date columns, add milestones and objectives in place, and spot deadlines that were extended.
@@ -162,7 +162,7 @@ The dashboard reads a few simple conventions. You don't need all of them, but th
 | Task | `Task: Produce requirements document` | `task` |
 | Sub-task | `Sub-task: Draft interview questions` | `sub-task`, `subtask` |
 
-A GitHub issue type set in the repository wins over the title, and the title wins over labels. An Issue with a `bug` label counts as a Bug; a Task with a `bug` label stays a Task. The prefix is hidden in the dashboard because the type shows as a tag.
+A GitHub issue type set in the repository wins over the title, and the title wins over labels. An Issue, or an item with no type, that has a `bug` label counts as a Bug; a Task with a `bug` label stays a Task. The prefix is hidden in the dashboard because the type shows as a tag.
 
 **Where items appear on the timeline:**
 
@@ -172,10 +172,11 @@ A GitHub issue type set in the repository wins over the title, and the title win
 | Issue, task or sub-task linked to a story | Under that story (and under its parent task, for sub-tasks) |
 | Issue or task in a milestone with stories, but not linked to one | Its milestone → **Not linked to a story**, so missing links are easy to spot |
 | Issue or task in a milestone with no stories | Its milestone, grouped by type |
-| Bug | **Bugs & untriaged** on top, open bugs first, with a tag naming the milestone it came from |
-| Item with no type that isn't linked to a parent | **Bugs & untriaged** → **No type yet**, until it gets a type |
+| Bug | Its milestone → **Bugs** (shown first, open bugs on top). A bug linked to a story sits under that story instead |
+| Item with no type | Treated as an Issue |
+| Item with no milestone | **No milestone**, at the bottom, grouped the same way |
 
-Items in **Bugs & untriaged** are counted there, not in their original milestone, in every view (timeline, board filter, burndown). Changing an item's type in the issue form moves it in or out of that section.
+Bugs count toward their milestone's progress like everything else. Changing an item's type to or from Bug in the issue form moves it into or out of the milestone's **Bugs** group.
 
 **2. Link tasks to their story.** Use any one of these:
 

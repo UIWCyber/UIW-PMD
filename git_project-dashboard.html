@@ -105,8 +105,6 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
 .sp.roll{background:none;color:var(--muted)}
 .ktag{font-size:10px;font-weight:700;letter-spacing:.02em;padding:0 6px;border-radius:4px;line-height:16px;flex:none;color:color-mix(in srgb,var(--k) 80%,var(--text));background:color-mix(in srgb,var(--k) 16%,transparent);border:1px solid color-mix(in srgb,var(--k) 40%,transparent)}
 .sub-of{font-size:11px;color:var(--faint);flex:none}
-.mstag{font-size:10.5px;padding:0 6px;border-radius:10px;line-height:16px;flex:none;margin-left:auto;color:var(--muted);border:1px solid color-mix(in srgb,var(--k) 50%,transparent);max-width:110px;overflow:hidden;text-overflow:ellipsis}
-.g-row.l1.stack>.g-cells{background:color-mix(in srgb,#f85149 10%,var(--panel))}
 .lbl{font-size:11px;padding:0 7px;border-radius:20px;font-weight:600;line-height:18px;border:1px solid transparent}
 
 /* ---------- KPI strip ---------- */
@@ -806,9 +804,8 @@ const GitLabSource = { async load(c){
    task list "- [ ] #12" in the parent's description.
    Story points: GitLab weight or a GitHub Project field ("Estimate", "Story Points"), else a label
    "sp: 5" / "5 SP", else "Story points: 5" / "Estimate: 5" in the description. Nothing found = not estimated.
-   Bugs ("Bug" type, "Bug:" prefix, or a plain issue labelled "bug") and top-level items with no type at all
-   are pulled out of their milestones into a "Bugs & untriaged" section at the top; the original milestone
-   is kept as homeMs and shown as a tag.
+   Bugs ("Bug" type, "Bug:" prefix, or a plain issue labelled "bug") stay in their own milestone, in a
+   "Bugs" group shown first; a bug linked to a story sits under that story instead. No type = Issue.
    Objective: an "objective::Name" label or GitLab epic, else "User Stories" (each story with its tree under it);
    in a milestone that has stories, other top-level items go to "Not linked to a story", otherwise they are
    grouped by type. Sub-items sit in their parent's objective so they can be shown under it.
@@ -821,13 +818,13 @@ const OBJ_RE = /^(?:objective|epic)\s*:{1,2}\s*(.+)$/i;
 const KIND_RE = [["subtask",/^\W*sub[- ]?(?:tasks?|issues?)\b/i],["story",/^\W*(?:user ?)?stor(?:y|ies)\b/i],["task",/^\W*tasks?\b/i],["bug",/^\W*(?:bugs?|defects?)\b/i],["issue",/^\W*issues?\b/i]];
 const PARENT_RE = /(?:parent(?: issue| story)?|part of|sub-?(?:task|issue) of|child of)\s*:?\s*#(\d+)/i;
 const TASKLIST_RE = /^\s*[-*]\s*\[[ xX]\]\s*#(\d+)/gm;
-// null = no type found anywhere ("untriaged"); a plain issue labelled "bug" counts as a bug
+// no type found anywhere = a plain issue; a plain issue labelled "bug" counts as a bug
 function kindOf(type,title,labels){
   let k=null;
   for(const s of [type,title]) if(s&&!k) for(const [kk,re] of KIND_RE) if(re.test(s)){ k=kk; break; }
   if(!k) for(const [kk,re] of KIND_RE) if(labels.some(l=>re.test(l))){ k=kk; break; }
-  if(k==="issue"&&labels.some(l=>KIND_RE[3][1].test(l))) k="bug";
-  return k;
+  if((!k||k==="issue")&&labels.some(l=>KIND_RE[3][1].test(l))) k="bug";
+  return k||"issue";
 }
 function statusOf(labels,closed){
   if(closed) return "done";
@@ -883,29 +880,21 @@ function normalizeLive(raw,provider){
   });
   const byNum={}; issues.forEach(i=>byNum[i.id]=i);
   const topOf=i=>{ let t=i; while(t.parent&&byNum[t.parent]) t=byNum[t.parent]; return t; };
-  // bugs and unlinked items with no type leave their milestone for a section pinned on top;
-  // anything under such an item goes with it
-  const stackable=i=>i.kind==="bug"||(!i.kind&&!i.parent);
-  const stacked=issues.filter(i=>stackable(i)||stackable(topOf(i)));
-  if(stacked.length){
-    const stack={id:Math.max(0,...milestones.map(m=>m.id))+1, title:"Bugs & untriaged", color:"#f85149", due:null, note:"Bugs and items with no type", stack:true};
-    milestones.unshift(stack);
-    stacked.forEach(i=>{ i.homeMs=i.ms; i.ms=stack.id; });
-    if(loose&&!issues.some(i=>i.ms===loose.id)) milestones.splice(milestones.indexOf(loose),1);
-  }
-  // objectives: explicit ones first, then User Stories, then the rest by type ("Not linked to a story"
-  // when the milestone has stories); a sub-item takes its top parent's objective when they share a milestone
+  // objectives: Bugs first so they stand out, then explicit ones, User Stories, and the rest by type
+  // ("Not linked to a story" when the milestone has stories); a sub-item takes its top parent's objective
+  // when they share a milestone
   const hasStories=new Set(issues.filter(i=>i.kind==="story").map(i=>i.ms));
   const groups={};
   for(const i of [...issues].sort((a,b)=>a.id-b.id)){
     const top=topOf(i), src=top.ms===i.ms?top:i;
-    const [rank,title] = src.objTitle ? [0,src.objTitle]
-      : !src.kind ? [90,"No type yet"]
-      : src.kind!=="story"&&src.kind!=="bug"&&hasStories.has(i.ms) ? [80,"Not linked to a story"]
+    const bug=!src.objTitle&&src.kind==="bug";
+    const [rank,title] = bug ? [-1,KIND.bug.group]
+      : src.objTitle ? [0,src.objTitle]
+      : src.kind!=="story"&&hasStories.has(i.ms) ? [80,"Not linked to a story"]
       : [1+KINDS.findIndex(k=>k[0]===src.kind),KIND[src.kind].group];
-    const key=i.ms+"|"+title; (groups[key]=groups[key]||{ms:i.ms,title,rank,items:[]}).items.push(i);
+    const key=i.ms+"|"+title; (groups[key]=groups[key]||{ms:i.ms,title,rank,bug,items:[]}).items.push(i);
   }
-  const objectives=Object.values(groups).sort((a,b)=>a.rank-b.rank).map((g,k)=>{ g.items.forEach(i=>i.obj=k+1); return {id:k+1, ms:g.ms, title:g.title}; });
+  const objectives=Object.values(groups).sort((a,b)=>a.rank-b.rank).map((g,k)=>{ g.items.forEach(i=>i.obj=k+1); return g.bug?{id:k+1, ms:g.ms, title:g.title, kind:"bug"}:{id:k+1, ms:g.ms, title:g.title}; });
   issues.forEach(i=>delete i.objTitle);
   raw.merges.forEach(m=>E(m.ts,m.actor,"mr_merged",`merged ${raw.mrPrefix}${m.id} "${m.title}"`,null));
   raw.commits.forEach(x=>{ const ref=(x.msg.match(/#(\d+)/)||[])[1]; E(x.ts,x.actor,"commit",x.msg,ref&&ids.has(+ref)?+ref:null,{sha:x.sha, branch:raw.branch||"main"}); });
@@ -964,7 +953,7 @@ const SP_SCALE = [1,2,3,5,8,13,21];
 // item types: [key, label, objective name used when grouping by type, color]
 const KINDS = [["story","User Story","User Stories","#3fb950"],["issue","Issue","Issues","#d29922"],["task","Task","Tasks","#58a6ff"],["subtask","Sub-task","Sub-tasks","#bc8cff"],["bug","Bug","Bugs","#f85149"]];
 const KIND = Object.fromEntries(KINDS.map(([k,label,group,color])=>[k,{label,group,color}]));
-const LIVE_FORMAT = 3;   // bump when normalizeLive changes shape, so older saved copies can be flagged
+const LIVE_FORMAT = 4;   // bump when normalizeLive changes shape, so older saved copies can be flagged
 const LABEL_COLORS = {web:"#3987e5",api:"#d95926",mobile:"#199e70",devops:"#c98500",design:"#8957e5",docs:"#6e7781",test:"#2da44e",security:"#da3633"};
 const LS_KEY = "pm_dashboard_v3", LS_UI = "pm_dashboard_ui_v3";
 const DAY = 864e5;
@@ -1155,12 +1144,6 @@ function spOptions(v){ return [0,...new Set([...SP_SCALE,v||0])].filter((n,k)=>k
 // "User Story - Define scope" → "Define scope" once the type is shown as a tag
 const shortTitle = i => i.kind ? (i.title.replace(/^\W*(?:user\s*stor(?:y|ies)|stor(?:y|ies)|sub[- ]?(?:tasks?|issues?)|tasks?|issues?|bugs?|defects?)\s*[-–—:|]\s*/i,"")||i.title) : i.title;
 const kindTag = i => KIND[i.kind] ? `<span class="ktag" style="--k:${KIND[i.kind].color}">${KIND[i.kind].label}</span>` : "";
-// items pulled into "Bugs & untriaged" show the milestone they came from
-function homeTag(i){
-  const m=i.homeMs&&msById(i.homeMs); if(!m) return "";
-  const short=(m.title.match(/^\s*(milestone\s*\d+|m\d+)/i)||[])[1]||m.title;
-  return `<span class="mstag" style="--k:${m.color}" title="${esc(m.title)}">${esc(short)}</span>`;
-}
 function kidsBadge(i){
   const all=[], walk=id=>kidsOf(id).forEach(k=>{ if(!all.includes(k)){ all.push(k); walk(k.id); } }); walk(i.id);
   const done=all.filter(k=>k.status==="done").length;
@@ -1297,7 +1280,7 @@ function ganttHTML(){
       h+=`<div class="g-group${ui.collapsed.includes("obj-"+o.id)?" collapsed":""}" data-key="obj-${o.id}">${summaryRow(2,o,oi,X,Z,ms)}<div class="g-kids"><div class="g-kids-inner">`;
       // items nest under their parent when it's shown in the same objective
       const byDate=(a,b)=>a.start<b.start?-1:a.start>b.start?1:a.id-b.id, here=new Set(os.map(i=>i.id));
-      const order=ms.stack ? (a,b)=>(a.status==="done")-(b.status==="done")||byDate(a,b) : byDate;   // open bugs first
+      const order=o.kind==="bug" ? (a,b)=>(a.status==="done")-(b.status==="done")||byDate(a,b) : byDate;   // open bugs first
       const tree=(i,depth,seen)=>{
         const kids=seen.has(i.id)?[]:os.filter(k=>k.parent===i.id).sort(order); seen.add(i.id);
         if(!kids.length) return issueRow(i,X,Z,depth,false);
@@ -1315,7 +1298,7 @@ function ganttHTML(){
 }
 function summaryRow(level,obj,issues,X,Z,ms){
   const W=(diff(S.sprints[0].start,S.sprints[S.sprints.length-1].end)+1)*Z;
-  const color = level===1 ? obj.color : ms.color;
+  const color = level===1 ? obj.color : obj.kind==="bug" ? KIND.bug.color : ms.color;
   const sp=spSum(issues), spDone=spSum(issues.filter(i=>i.status==="done")), noEst=unestimated(issues).length;
   const start=issues.length?issues.reduce((a,i)=>i.start<a?i.start:a,issues[0].start):null;
   const end=issues.length?issues.reduce((a,i)=>i.end>a?i.end:a,issues[0].end):null;
@@ -1332,14 +1315,14 @@ function summaryRow(level,obj,issues,X,Z,ms){
   if(level===1&&obj.due) track+=`<div class="diamond" style="left:${X(obj.due)+Z}px;background:${color}" data-tip="<b>${esc(obj.note)}</b><br>Due ${fmtL(obj.due)}"></div>`;
   const chev=`<button class="chev" data-toggle aria-label="Expand or collapse">▼</button>`;
   const head = level===1
-    ? `${chev}<span class="mbar" style="background:${color}"></span><span class="nm ed" data-ed="ms:${obj.id}:title">${esc(obj.title)}</span><span class="cnt-badge" data-tip="${done} of ${issues.length} done">${obj.stack?`${issues.length-done} open`:`${done}/${issues.length}`}</span>
+    ? `${chev}<span class="mbar" style="background:${color}"></span><span class="nm ed" data-ed="ms:${obj.id}:title">${esc(obj.title)}</span><span class="cnt-badge" data-tip="${done} of ${issues.length} done">${done}/${issues.length}</span>
        <span class="rowact"><button class="iconbtn" data-act="add-obj" data-ms="${obj.id}" title="Add objective">+ Objective</button></span>`
     : `${chev}<span class="obj-ico" style="border-color:${color}"></span><span class="nm ed" data-ed="obj:${obj.id}:title">${esc(obj.title)}</span><span class="cnt-badge">${done}/${issues.length}</span>
 `;
   const dueCell = level===1
     ? `<div class="c-date ed" data-ed="ms:${obj.id}:due" title="Milestone due date">${obj.due?fmt(obj.due):(obj.note.includes("TBD")?'<span style="color:var(--warn)">TBD</span>':"—")}</div>`
     : `<div class="c-date">${fmt(end)}</div>`;
-  return `<div class="g-row l${level}${level===1&&obj.stack?" stack":""}"><div class="g-cells">
+  return `<div class="g-row l${level}"><div class="g-cells">
       <div class="c-name">${head}</div>
       <div><span class="avatars">${who.map(w=>avatar(w)).join("")}</span></div>
       <div class="c-r"><span class="sp${sp?"":" none"}" data-tip="${spDone} of ${sp} story points done${noEst?` · ${noEst} item${noEst>1?"s":""} not estimated`:""}">${sp||"–"}</span></div>
@@ -1355,7 +1338,7 @@ function issueRow(i,X,Z,depth=0,hasKids=false){
   const tipTxt=`<b>#${i.id} ${esc(i.title)}</b><br>${KIND[i.kind]?KIND[i.kind].label+" · ":""}${esc(i.assignee)} · ${spTxt} · ${ST[i.status].label}<br>${fmt(i.start)} – ${fmt(i.end)}${i.tbd?" (TBD)":""}${i.parent?`<br>Sub-item of #${i.parent}`:""}${i.deps.length?`<br>Blocked by ${i.deps.map(d=>"#"+d).join(", ")}`:""}${isLate(i)?"<br><b style='color:var(--danger)'>Overdue</b>":""}<br><span style='color:var(--faint)'>Drag to move · drag right edge to resize · click to open</span>`;
   const pad=52+depth*22-(hasKids?25:0);
   return `<div class="g-row l3${i.status==="done"?" done":""}" data-issue="${i.id}"><div class="g-cells">
-      <div class="c-name" style="padding-left:${pad}px">${hasKids?`<button class="chev" data-toggle aria-label="Show or hide sub-items">▼</button>`:""}${issueIcon(i)}<span class="num" data-act="open" data-id="${i.id}">#${i.id}</span>${kindTag(i)}${i.parent&&!depth?`<span class="sub-of" title="Sub-item of #${i.parent}">↳ #${i.parent}</span>`:""}<span class="nm ed" data-ed="issue:${i.id}:title" title="${esc(i.title)}">${esc(shortTitle(i))}</span>${hasKids?kidsBadge(i):""}${homeTag(i)}</div>
+      <div class="c-name" style="padding-left:${pad}px">${hasKids?`<button class="chev" data-toggle aria-label="Show or hide sub-items">▼</button>`:""}${issueIcon(i)}<span class="num" data-act="open" data-id="${i.id}">#${i.id}</span>${kindTag(i)}${i.parent&&!depth?`<span class="sub-of" title="Sub-item of #${i.parent}">↳ #${i.parent}</span>`:""}<span class="nm ed" data-ed="issue:${i.id}:title" title="${esc(i.title)}">${esc(shortTitle(i))}</span>${hasKids?kidsBadge(i):""}</div>
       <div class="ed" data-ed="issue:${i.id}:assignee" style="gap:6px">${avatar(i.assignee)}<span style="font-size:12px;overflow:hidden;text-overflow:ellipsis">${esc(i.assignee)}</span></div>
       <div class="c-r ed" data-ed="issue:${i.id}:sp">${spBadge(i)}</div>
       <div class="c-date ed" data-ed="issue:${i.id}:start">${fmt(i.start)}</div>
@@ -1571,17 +1554,13 @@ function saveIssue(){
     const old=editing===null?null:byId(editing).parent;
     if(rec.parent!==old&&p.ms===rec.ms) rec.obj=p.obj;
   }
-  // a type change moves the item into or out of "Bugs & untriaged", the same way a reload would place it
-  const stack=S.milestones.find(m=>m.stack), prev=editing===null?undefined:(byId(editing).kind||null);
-  const objIn=(ms,title)=>{ let o=S.objectives.find(x=>x.ms===ms&&x.title===title); if(!o){ o={id:Math.max(0,...S.objectives.map(x=>x.id))+1,ms,title}; S.objectives.push(o); } return o.id; };
-  if(stack&&rec.kind!==prev){
-    const want=rec.kind==="bug"||(!rec.kind&&!rec.parent);
-    if(want&&rec.ms!==stack.id){ rec.homeMs=rec.ms; rec.ms=stack.id; rec.obj=objIn(stack.id,rec.kind?KIND.bug.group:"No type yet"); }
-    else if(!want&&rec.ms===stack.id){
-      const home=editing===null?null:byId(editing).homeMs;
-      rec.ms=home&&msById(home)?home:(S.milestones.find(m=>!m.stack)||stack).id; rec.homeMs=null;
-      rec.obj=objIn(rec.ms,KIND[rec.kind].group);
-    }
+  // a type change into or out of Bug moves an unlinked item to or from its milestone's Bugs group (listed first)
+  const prev=editing===null?null:(byId(editing).kind||null), linked=rec.parent&&byId(rec.parent)?.ms===rec.ms;
+  const objIn=(ms,title,kind)=>{ let o=S.objectives.find(x=>x.ms===ms&&x.title===title); if(!o){ o={id:Math.max(0,...S.objectives.map(x=>x.id))+1,ms,title}; if(kind){ o.kind=kind; S.objectives.unshift(o); } else S.objectives.push(o); } return o.id; };
+  if(rec.kind!==prev&&!linked){
+    if(rec.kind==="bug") rec.obj=objIn(rec.ms,KIND.bug.group,"bug");
+    else if(prev==="bug"&&objById(rec.obj)?.kind==="bug")
+      rec.obj=objIn(rec.ms,rec.kind!=="story"&&S.issues.some(x=>x.ms===rec.ms&&x.kind==="story")?"Not linked to a story":KIND[rec.kind||"issue"].group);
   }
   if(!rec.obj){ const id=Math.max(0,...S.objectives.map(o=>o.id))+1; S.objectives.push({id,ms:rec.ms,title:"General"}); rec.obj=id; }
   if(editing===null){
@@ -1606,6 +1585,9 @@ function saveIssue(){
     delete rec.status; Object.assign(i,rec);
     if(changes.length) logEvent("issue_updated",`edited ${changes.join(", ")} of ${ref}`,i.id);
   }
+  // drop an automatic group (Bugs, User Stories, Not linked to a story, …) left empty by the move
+  const auto=new Set(["Not linked to a story",...KINDS.map(k=>k[2])]);
+  S.objectives=S.objectives.filter(o=>!auto.has(o.title)||S.issues.some(i=>i.obj===o.id));
   closeOverlays(); render(); toast("Issue saved · remember to Save");
 }
 function setStatus(i,ns,quiet){
@@ -1774,7 +1756,7 @@ function renderBoard(){
     if(!col.length) h+=`<div class="empty" style="padding:16px;font-size:12px">No issues</div>`;
     for(const i of col){ const ms=msById(i.ms);
       h+=`<div class="kcard" draggable="true" data-id="${i.id}" style="border-left-color:${mc(i.assignee)}">
-        <div class="ctop">${issueIcon(i)}<span>#${i.id}</span>${kindTag(i)}<span class="pill" style="color:${ms.color};border-color:color-mix(in srgb,${ms.color} 45%,transparent)">${ms.stack?"Bugs & untriaged":"M"+i.ms}</span>${i.tbd?`<span style="color:var(--warn);font-weight:600">TBD</span>`:""}${isLate(i)?`<span style="color:var(--danger);font-weight:600">Overdue</span>`:""}<span style="margin-left:auto">${spBadge(i)}</span></div>
+        <div class="ctop">${issueIcon(i)}<span>#${i.id}</span>${kindTag(i)}<span class="pill" style="color:${ms.color};border-color:color-mix(in srgb,${ms.color} 45%,transparent)">M${i.ms}</span>${i.tbd?`<span style="color:var(--warn);font-weight:600">TBD</span>`:""}${isLate(i)?`<span style="color:var(--danger);font-weight:600">Overdue</span>`:""}<span style="margin-left:auto">${spBadge(i)}</span></div>
         <div class="cname" title="${esc(i.title)}">${esc(shortTitle(i))}${i.parent?` <span class="sub-of">↳ #${i.parent}</span>`:""}</div>
         <div class="cbot">${avatar(i.assignee)}${esc(i.assignee)}${i.labels.slice(0,2).map(labelHTML).join("")}<span style="margin-left:auto;color:var(--faint)" title="Due">${fmt(i.end)}</span></div></div>`; }
     h+=`</div></div>`;
