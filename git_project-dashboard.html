@@ -804,8 +804,8 @@ const GitLabSource = { async load(c){
    task list "- [ ] #12" in the parent's description.
    Story points: GitLab weight or a GitHub Project field ("Estimate", "Story Points"), else a label
    "sp: 5" / "5 SP", else "Story points: 5" / "Estimate: 5" in the description. Nothing found = not estimated.
-   Bugs ("Bug" type, "Bug:" prefix, or a plain issue labelled "bug") stay in their own milestone, in a
-   "Bugs" group shown first; a bug linked to a story sits under that story instead. No type = Issue.
+   Hierarchy: milestone → user stories → tasks / issues → sub-tasks / sub-issues / bugs. A plain issue
+   labelled "bug" counts as a bug. An item with no type at all is "untracked" and listed last.
    Objective: an "objective::Name" label or GitLab epic, else "User Stories" (each story with its tree under it);
    in a milestone that has stories, other top-level items go to "Not linked to a story", otherwise they are
    grouped by type. Sub-items sit in their parent's objective so they can be shown under it.
@@ -818,13 +818,13 @@ const OBJ_RE = /^(?:objective|epic)\s*:{1,2}\s*(.+)$/i;
 const KIND_RE = [["subtask",/^\W*sub[- ]?(?:tasks?|issues?)\b/i],["story",/^\W*(?:user ?)?stor(?:y|ies)\b/i],["task",/^\W*tasks?\b/i],["bug",/^\W*(?:bugs?|defects?)\b/i],["issue",/^\W*issues?\b/i]];
 const PARENT_RE = /(?:parent(?: issue| story)?|part of|sub-?(?:task|issue) of|child of)\s*:?\s*#(\d+)/i;
 const TASKLIST_RE = /^\s*[-*]\s*\[[ xX]\]\s*#(\d+)/gm;
-// no type found anywhere = a plain issue; a plain issue labelled "bug" counts as a bug
+// no type found anywhere = "untracked"; a plain issue labelled "bug" counts as a bug
 function kindOf(type,title,labels){
   let k=null;
   for(const s of [type,title]) if(s&&!k) for(const [kk,re] of KIND_RE) if(re.test(s)){ k=kk; break; }
   if(!k) for(const [kk,re] of KIND_RE) if(labels.some(l=>re.test(l))){ k=kk; break; }
   if((!k||k==="issue")&&labels.some(l=>KIND_RE[3][1].test(l))) k="bug";
-  return k||"issue";
+  return k||"untracked";
 }
 function statusOf(labels,closed){
   if(closed) return "done";
@@ -880,21 +880,16 @@ function normalizeLive(raw,provider){
   });
   const byNum={}; issues.forEach(i=>byNum[i.id]=i);
   const topOf=i=>{ let t=i; while(t.parent&&byNum[t.parent]) t=byNum[t.parent]; return t; };
-  // objectives: Bugs first so they stand out, then explicit ones, User Stories, and the rest by type
-  // ("Not linked to a story" when the milestone has stories); a sub-item takes its top parent's objective
-  // when they share a milestone
+  // objectives: explicit ones first, then the automatic groups (autoGroup); a sub-item takes its top
+  // parent's objective when they share a milestone
   const hasStories=new Set(issues.filter(i=>i.kind==="story").map(i=>i.ms));
   const groups={};
   for(const i of [...issues].sort((a,b)=>a.id-b.id)){
     const top=topOf(i), src=top.ms===i.ms?top:i;
-    const bug=!src.objTitle&&src.kind==="bug";
-    const [rank,title] = bug ? [-1,KIND.bug.group]
-      : src.objTitle ? [0,src.objTitle]
-      : src.kind!=="story"&&hasStories.has(i.ms) ? [80,"Not linked to a story"]
-      : [1+KINDS.findIndex(k=>k[0]===src.kind),KIND[src.kind].group];
-    const key=i.ms+"|"+title; (groups[key]=groups[key]||{ms:i.ms,title,rank,bug,items:[]}).items.push(i);
+    const [rank,title]=src.objTitle?[0,src.objTitle]:autoGroup(src.kind,hasStories.has(i.ms));
+    const key=i.ms+"|"+title; (groups[key]=groups[key]||{ms:i.ms,title,rank,items:[]}).items.push(i);
   }
-  const objectives=Object.values(groups).sort((a,b)=>a.rank-b.rank).map((g,k)=>{ g.items.forEach(i=>i.obj=k+1); return g.bug?{id:k+1, ms:g.ms, title:g.title, kind:"bug"}:{id:k+1, ms:g.ms, title:g.title}; });
+  const objectives=Object.values(groups).sort((a,b)=>a.rank-b.rank).map((g,k)=>{ g.items.forEach(i=>i.obj=k+1); return {id:k+1, ms:g.ms, title:g.title}; });
   issues.forEach(i=>delete i.objTitle);
   raw.merges.forEach(m=>E(m.ts,m.actor,"mr_merged",`merged ${raw.mrPrefix}${m.id} "${m.title}"`,null));
   raw.commits.forEach(x=>{ const ref=(x.msg.match(/#(\d+)/)||[])[1]; E(x.ts,x.actor,"commit",x.msg,ref&&ids.has(+ref)?+ref:null,{sha:x.sha, branch:raw.branch||"main"}); });
@@ -951,9 +946,10 @@ const STATUSES = [["todo","Backlog","#768390"],["ready","Ready","#58a6ff"],["pro
 const ST = Object.fromEntries(STATUSES.map(([k,l,c])=>[k,{label:l,color:c}]));
 const SP_SCALE = [1,2,3,5,8,13,21];
 // item types: [key, label, objective name used when grouping by type, color]
-const KINDS = [["story","User Story","User Stories","#3fb950"],["issue","Issue","Issues","#d29922"],["task","Task","Tasks","#58a6ff"],["subtask","Sub-task","Sub-tasks","#bc8cff"],["bug","Bug","Bugs","#f85149"]];
+// in hierarchy order: milestone → stories → tasks / issues → sub-tasks / sub-issues / bugs → untracked
+const KINDS = [["story","User Story","User Stories","#3fb950"],["task","Task","Tasks","#58a6ff"],["issue","Issue","Issues","#d29922"],["subtask","Sub-task","Sub-tasks","#bc8cff"],["bug","Bug","Bugs","#f85149"],["untracked","Untracked","Untracked","#768390"]];
 const KIND = Object.fromEntries(KINDS.map(([k,label,group,color])=>[k,{label,group,color}]));
-const LIVE_FORMAT = 4;   // bump when normalizeLive changes shape, so older saved copies can be flagged
+const LIVE_FORMAT = 5;   // bump when normalizeLive changes shape, so older saved copies can be flagged
 const LABEL_COLORS = {web:"#3987e5",api:"#d95926",mobile:"#199e70",devops:"#c98500",design:"#8957e5",docs:"#6e7781",test:"#2da44e",security:"#da3633"};
 const LS_KEY = "pm_dashboard_v3", LS_UI = "pm_dashboard_ui_v3";
 const DAY = 864e5;
@@ -1144,6 +1140,15 @@ function spOptions(v){ return [0,...new Set([...SP_SCALE,v||0])].filter((n,k)=>k
 // "User Story - Define scope" → "Define scope" once the type is shown as a tag
 const shortTitle = i => i.kind ? (i.title.replace(/^\W*(?:user\s*stor(?:y|ies)|stor(?:y|ies)|sub[- ]?(?:tasks?|issues?)|tasks?|issues?|bugs?|defects?)\s*[-–—:|]\s*/i,"")||i.title) : i.title;
 const kindTag = i => KIND[i.kind] ? `<span class="ktag" style="--k:${KIND[i.kind].color}">${KIND[i.kind].label}</span>` : "";
+// automatic objective for a top-level item: User Stories; Untracked last; otherwise "Not linked to a story"
+// when the milestone has stories, else one group per type
+function autoGroup(kind,msHasStories){
+  if(kind==="untracked") return [99,KIND.untracked.group];
+  if(kind!=="story"&&msHasStories) return [80,"Not linked to a story"];
+  return [1+KINDS.findIndex(k=>k[0]===kind),KIND[kind].group];
+}
+const AUTO_GROUPS = new Set(["Not linked to a story",...KINDS.map(k=>k[2])]);
+const kindRank = i => { const k=KINDS.findIndex(x=>x[0]===i.kind); return k<0?KINDS.length:k; };
 function kidsBadge(i){
   const all=[], walk=id=>kidsOf(id).forEach(k=>{ if(!all.includes(k)){ all.push(k); walk(k.id); } }); walk(i.id);
   const done=all.filter(k=>k.status==="done").length;
@@ -1280,7 +1285,7 @@ function ganttHTML(){
       h+=`<div class="g-group${ui.collapsed.includes("obj-"+o.id)?" collapsed":""}" data-key="obj-${o.id}">${summaryRow(2,o,oi,X,Z,ms)}<div class="g-kids"><div class="g-kids-inner">`;
       // items nest under their parent when it's shown in the same objective
       const byDate=(a,b)=>a.start<b.start?-1:a.start>b.start?1:a.id-b.id, here=new Set(os.map(i=>i.id));
-      const order=o.kind==="bug" ? (a,b)=>(a.status==="done")-(b.status==="done")||byDate(a,b) : byDate;   // open bugs first
+      const order=(a,b)=>kindRank(a)-kindRank(b)||byDate(a,b);   // tasks/issues, then sub-tasks/bugs, then untracked
       const tree=(i,depth,seen)=>{
         const kids=seen.has(i.id)?[]:os.filter(k=>k.parent===i.id).sort(order); seen.add(i.id);
         if(!kids.length) return issueRow(i,X,Z,depth,false);
@@ -1298,7 +1303,7 @@ function ganttHTML(){
 }
 function summaryRow(level,obj,issues,X,Z,ms){
   const W=(diff(S.sprints[0].start,S.sprints[S.sprints.length-1].end)+1)*Z;
-  const color = level===1 ? obj.color : obj.kind==="bug" ? KIND.bug.color : ms.color;
+  const color = level===1 ? obj.color : ms.color;
   const sp=spSum(issues), spDone=spSum(issues.filter(i=>i.status==="done")), noEst=unestimated(issues).length;
   const start=issues.length?issues.reduce((a,i)=>i.start<a?i.start:a,issues[0].start):null;
   const end=issues.length?issues.reduce((a,i)=>i.end>a?i.end:a,issues[0].end):null;
@@ -1556,13 +1561,14 @@ function saveIssue(){
     const old=editing===null?null:byId(editing).parent;
     if(rec.parent!==old&&p.ms===rec.ms) rec.obj=p.obj;
   }
-  // a type change into or out of Bug moves an unlinked item to or from its milestone's Bugs group (listed first)
+  // a type change moves an unlinked item between automatic groups, the same way a reload would place it
+  // (only when it sits in an automatic group, so hand-made objectives are kept)
   const prev=editing===null?null:(byId(editing).kind||null), linked=rec.parent&&byId(rec.parent)?.ms===rec.ms;
-  const objIn=(ms,title,kind)=>{ let o=S.objectives.find(x=>x.ms===ms&&x.title===title); if(!o){ o={id:Math.max(0,...S.objectives.map(x=>x.id))+1,ms,title}; if(kind){ o.kind=kind; S.objectives.unshift(o); } else S.objectives.push(o); } return o.id; };
-  if(rec.kind!==prev&&!linked){
-    if(rec.kind==="bug") rec.obj=objIn(rec.ms,KIND.bug.group,"bug");
-    else if(prev==="bug"&&objById(rec.obj)?.kind==="bug")
-      rec.obj=objIn(rec.ms,rec.kind!=="story"&&S.issues.some(x=>x.ms===rec.ms&&x.kind==="story")?"Not linked to a story":KIND[rec.kind||"issue"].group);
+  if(rec.kind&&rec.kind!==prev&&!linked&&AUTO_GROUPS.has(objById(rec.obj)?.title)){
+    const [,title]=autoGroup(rec.kind,S.issues.some(x=>x.ms===rec.ms&&x.kind==="story"&&x.id!==editing));
+    let o=S.objectives.find(x=>x.ms===rec.ms&&x.title===title);
+    if(!o){ o={id:Math.max(0,...S.objectives.map(x=>x.id))+1,ms:rec.ms,title}; S.objectives.push(o); }
+    rec.obj=o.id;
   }
   if(!rec.obj){ const id=Math.max(0,...S.objectives.map(o=>o.id))+1; S.objectives.push({id,ms:rec.ms,title:"General"}); rec.obj=id; }
   if(editing===null){
@@ -1587,9 +1593,8 @@ function saveIssue(){
     delete rec.status; Object.assign(i,rec);
     if(changes.length) logEvent("issue_updated",`edited ${changes.join(", ")} of ${ref}`,i.id);
   }
-  // drop an automatic group (Bugs, User Stories, Not linked to a story, …) left empty by the move
-  const auto=new Set(["Not linked to a story",...KINDS.map(k=>k[2])]);
-  S.objectives=S.objectives.filter(o=>!auto.has(o.title)||S.issues.some(i=>i.obj===o.id));
+  // drop an automatic group left empty by the move
+  S.objectives=S.objectives.filter(o=>!AUTO_GROUPS.has(o.title)||S.issues.some(i=>i.obj===o.id));
   closeOverlays(); render(); toast("Issue saved · remember to Save");
 }
 function setStatus(i,ns,quiet){
