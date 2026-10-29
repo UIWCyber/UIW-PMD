@@ -1128,6 +1128,13 @@ function ancestors(i){ const out=[]; for(let p=byId(i.parent); p&&out.length<20&
 const spCounts = i => !!i.sp && !ancestors(i).some(p=>p.sp);
 const spOf = i => spCounts(i) ? i.sp : 0;
 const spSum = list => list.reduce((a,i)=>a+spOf(i),0);
+// % complete for a set of items: by story points when any are estimated, otherwise by issues closed,
+// so a group with no estimates still shows real progress instead of 0%
+function progress(list){
+  const done=list.filter(i=>i.status==="done"), sp=spSum(list);
+  return sp ? {pct:Math.round(spSum(done)/sp*100), by:"story points"}
+            : {pct:list.length?Math.round(done.length/list.length*100):0, by:"issues closed (nothing estimated)"};
+}
 function spRoll(i,seen=new Set()){ if(i.sp||seen.has(i.id)) return i.sp||0; seen.add(i.id); return kidsOf(i.id).reduce((a,k)=>a+spRoll(k,seen),0); }
 // items with no estimate of their own, none above them, and no sub-items carrying one
 const unestimated = list => list.filter(i=>!i.sp && !spRoll(i) && !ancestors(i).some(p=>p.sp));
@@ -1210,7 +1217,7 @@ function renderOverview(){
   const pct=(a,b)=>b?Math.round(a/b*100):0;
   let h=`<div class="kpis">
     <div class="kpi"><div class="k">Current sprint</div><div class="v">${s.sp?`Sprint ${s.sp.n}`:"—"}</div><div class="s">${s.sp?`${fmt(s.sp.start)} – ${fmt(s.sp.end)} · ${diff(s.t,s.sp.end)} days left`:"Outside the project window"}</div>
-      <div class="meter"><i style="width:${pct(s.sprintDone,s.sprintSp)}%;background:var(--accent)"></i></div></div>
+      <div class="meter"><i style="width:${progress(s.sprintIssues).pct}%;background:var(--accent)"></i></div></div>
     <div class="kpi"><div class="k">Issues closed</div><div class="v">${s.done.length} <span style="color:var(--faint);font-size:14px">/ ${s.all.length}</span></div><div class="s">${pct(s.done.length,s.all.length)}% of all issues</div><div class="meter"><i style="width:${pct(s.done.length,s.all.length)}%"></i></div></div>
     <div class="kpi"><div class="k">Story points done</div><div class="v">${s.spDone} <span style="color:var(--faint);font-size:14px">/ ${s.spTot}</span></div><div class="s"${s.noEst.length?` data-tip="${esc(s.noEst.map(i=>`#${i.id} ${i.title}`).slice(0,25).join("<br>"))}"`:""}>${pct(s.spDone,s.spTot)}% of planned points${s.noEst.length?` · <span style="color:var(--warn)">${s.noEst.length} not estimated</span>`:""}</div><div class="meter"><i style="width:${pct(s.spDone,s.spTot)}%"></i></div></div>
     <div class="kpi"><div class="k">Next milestone</div><div class="v" style="font-size:16px;padding-top:3px">${s.next?esc(s.next.note||s.next.title):"—"}</div><div class="s">${s.next?`${fmt(s.next.due)} · in ${diff(s.t,s.next.due)} days`:""}</div></div>
@@ -1308,13 +1315,13 @@ function summaryRow(level,obj,issues,X,Z,ms){
   const start=issues.length?issues.reduce((a,i)=>i.start<a?i.start:a,issues[0].start):null;
   const end=issues.length?issues.reduce((a,i)=>i.end>a?i.end:a,issues[0].end):null;
   const who=[...new Set(issues.map(i=>i.assignee))].sort((a,b)=>ASSIGNEES.indexOf(a)-ASSIGNEES.indexOf(b));
-  const pct=sp?Math.round(spDone/sp*100):0;
+  const prog=progress(issues), pct=prog.pct;
   const kind=level===1?"ms":"obj";
   const done=issues.filter(i=>i.status==="done").length;
   let track="";
   if(start){
     const l=X(start), w=(diff(start,end)+1)*Z;
-    track+=`<div class="sbar ${kind}" style="left:${l}px;width:${w}px;background:color-mix(in srgb,${color} 30%,transparent)" data-tip="<b>${esc(obj.title)}</b><br>${fmt(start)} – ${fmt(end)}<br>${done}/${issues.length} issues · ${spDone}/${sp} SP (${pct}%)"><i style="width:${pct}%;background:${color}"></i></div>`;
+    track+=`<div class="sbar ${kind}" style="left:${l}px;width:${w}px;background:color-mix(in srgb,${color} 30%,transparent)" data-tip="<b>${esc(obj.title)}</b><br>${fmt(start)} – ${fmt(end)}<br>${done}/${issues.length} issues · ${spDone}/${sp} SP<br>${pct}% done, by ${prog.by}"><i style="width:${pct}%;background:${color}"></i></div>`;
     if(level===1) track+=`<span class="sbar-lbl" style="left:${Math.max(l+w,obj.due?X(obj.due)+Z+8:0)+10}px">${pct}%${obj.note?" · "+esc(obj.note):""}</span>`;
   }
   if(level===1&&obj.due) track+=`<div class="diamond" style="left:${X(obj.due)+Z}px;background:${color}" data-tip="<b>${esc(obj.note)}</b><br>Due ${fmtL(obj.due)}"></div>`;

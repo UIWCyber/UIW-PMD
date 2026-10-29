@@ -200,6 +200,7 @@ On GitLab, the issue's weight is used first.
 - Each estimate counts **once**. If a story has an estimate, that covers its tasks, so their points aren't added again.
 - If a story has no estimate, it shows the total of its tasks, in grey.
 - Unestimated items show **–**. The *Story points done* card counts them, so you can see what still needs an estimate.
+- Milestone and group progress (the % on the timeline bars) uses story points when any item in the group is estimated. If none are, it uses issues closed instead, so a finished milestone with no estimates still shows 100%. Hover a bar to see which was used.
 - "In a sprint" always means *due inside the sprint*. Every view uses the same totals.
 
 **4. Mark blockers.** Write `Blocked by #12` or `Depends on #12` in the description.
