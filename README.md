@@ -62,7 +62,7 @@ It works for a semester capstone, a class project, a club app or any small team 
 ## The four views
 
 ### 1. Overview / Gantt
-A timeline of every milestone, objective and issue, with start and due dates, story points and owners. Each item is tagged as a **User Story**, **Issue**, **Task**, **Sub-task** or **Bug**. Under each milestone, every user story is a parent row with its issues, tasks and sub-tasks nested inside it and a done/total count (click the arrow to fold them). Bugs and anything with no type sit in a red **Bugs & untriaged** section pinned above the milestones.
+A timeline of every milestone, objective and issue, with start and due dates, story points and owners. Each item is tagged as a **User Story**, **Issue**, **Task** or **Sub-task**, and tasks nest under the story they belong to (click the arrow to fold them).
 - Zoom the timeline by **Month**, **Sprint** or **Week**.
 - Switch between **Summary view**, **Collapse all** and **Expand all** to go from the big picture to the details.
 - Show or hide date columns, add milestones and objectives in place, and spot deadlines that were extended.
@@ -157,25 +157,11 @@ The dashboard reads a few simple conventions. You don't need all of them, but th
 | Type | Title examples | Label examples |
 | --- | --- | --- |
 | User Story | `User Story - Define project scope`, `Story: Export reports` | `story`, `user story` |
-| Issue | `Issue - Integration compatibility` | `issue` |
-| Bug | `Bug: Login fails`, `Defect - Report crashes` | `bug`, `defect` |
+| Issue | `Issue - Integration compatibility`, `Bug: Login fails` | `issue`, `bug` |
 | Task | `Task: Produce requirements document` | `task` |
 | Sub-task | `Sub-task: Draft interview questions` | `sub-task`, `subtask` |
 
-A GitHub issue type set in the repository wins over the title, and the title wins over labels. An Issue with a `bug` label counts as a Bug; a Task with a `bug` label stays a Task. The prefix is hidden in the dashboard because the type shows as a tag.
-
-**Where items appear on the timeline:**
-
-| Item | Where it shows |
-| --- | --- |
-| User story | Its milestone → **User Stories**, as a parent row with everything linked to it nested underneath |
-| Issue, task or sub-task linked to a story | Under that story (and under its parent task, for sub-tasks) |
-| Issue or task in a milestone with stories, but not linked to one | Its milestone → **Not linked to a story**, so missing links are easy to spot |
-| Issue or task in a milestone with no stories | Its milestone, grouped by type |
-| Bug | **Bugs & untriaged** on top, open bugs first, with a tag naming the milestone it came from |
-| Item with no type that isn't linked to a parent | **Bugs & untriaged** → **No type yet**, until it gets a type |
-
-Items in **Bugs & untriaged** are counted there, not in their original milestone, in every view (timeline, board filter, burndown). Changing an item's type in the issue form moves it in or out of that section.
+A GitHub issue type set in the repository wins over the title, and the title wins over labels. Items with no type count as Issues. The prefix is hidden in the dashboard because the type shows as a tag.
 
 **2. Link tasks to their story.** Use any one of these:
 
