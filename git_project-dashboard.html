@@ -1336,9 +1336,11 @@ function issueRow(i,X,Z,depth=0,hasKids=false){
   const showTxt=w>70, roll=spRoll(i);
   const spTxt=i.sp?`${i.sp} SP`:roll?`${roll} SP (sub-items)`:"not estimated";
   const tipTxt=`<b>#${i.id} ${esc(i.title)}</b><br>${KIND[i.kind]?KIND[i.kind].label+" · ":""}${esc(i.assignee)} · ${spTxt} · ${ST[i.status].label}<br>${fmt(i.start)} – ${fmt(i.end)}${i.tbd?" (TBD)":""}${i.parent?`<br>Sub-item of #${i.parent}`:""}${i.deps.length?`<br>Blocked by ${i.deps.map(d=>"#"+d).join(", ")}`:""}${isLate(i)?"<br><b style='color:var(--danger)'>Overdue</b>":""}<br><span style='color:var(--faint)'>Drag to move · drag right edge to resize · click to open</span>`;
-  const pad=52+depth*22-(hasKids?25:0);
+  // each level indents 36px; a faint guide line runs down from every ancestor's icon
+  const STEP=36, pad=52+depth*STEP-(hasKids?25:0), guides=Array.from({length:depth},(_,k)=>52+k*STEP+6);
+  const guideCss=guides.length?`background-image:${guides.map(()=>"linear-gradient(var(--border),var(--border))").join(",")};background-size:${guides.map(()=>"1px 100%").join(",")};background-position:${guides.map(x=>x+"px 0").join(",")};background-repeat:no-repeat;`:"";
   return `<div class="g-row l3${i.status==="done"?" done":""}" data-issue="${i.id}"><div class="g-cells">
-      <div class="c-name" style="padding-left:${pad}px">${hasKids?`<button class="chev" data-toggle aria-label="Show or hide sub-items">▼</button>`:""}${issueIcon(i)}<span class="num" data-act="open" data-id="${i.id}">#${i.id}</span>${kindTag(i)}${i.parent&&!depth?`<span class="sub-of" title="Sub-item of #${i.parent}">↳ #${i.parent}</span>`:""}<span class="nm ed" data-ed="issue:${i.id}:title" title="${esc(i.title)}">${esc(shortTitle(i))}</span>${hasKids?kidsBadge(i):""}</div>
+      <div class="c-name" style="padding-left:${pad}px;${guideCss}">${hasKids?`<button class="chev" data-toggle aria-label="Show or hide sub-items">▼</button>`:""}${issueIcon(i)}<span class="num" data-act="open" data-id="${i.id}">#${i.id}</span>${kindTag(i)}${i.parent&&!depth?`<span class="sub-of" title="Sub-item of #${i.parent}">↳ #${i.parent}</span>`:""}<span class="nm ed" data-ed="issue:${i.id}:title" title="${esc(i.title)}">${esc(shortTitle(i))}</span>${hasKids?kidsBadge(i):""}</div>
       <div class="ed" data-ed="issue:${i.id}:assignee" style="gap:6px">${avatar(i.assignee)}<span style="font-size:12px;overflow:hidden;text-overflow:ellipsis">${esc(i.assignee)}</span></div>
       <div class="c-r ed" data-ed="issue:${i.id}:sp">${spBadge(i)}</div>
       <div class="c-date ed" data-ed="issue:${i.id}:start">${fmt(i.start)}</div>
