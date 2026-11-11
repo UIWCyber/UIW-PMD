@@ -52,26 +52,27 @@ It works for a semester capstone, a class project, a club app or any small team 
 | --- | --- |
 | **Pulls from GitHub and GitLab** | Your existing milestones, issues and commits show up automatically. No double entry. |
 | **Zero install** | It is one HTML file, [`git_project-dashboard.html`](git_project-dashboard.html). Open it in any modern browser and you are working. |
-| **User friendly** | Clean tabs, inline editing, drag and drop, and light or dark mode that follows your system. |
-| **Easy to navigate** | Four focused views, expand or collapse controls, and filters by milestone or teammate. |
+| **User friendly** | Clean tabs, click-to-open issue details, resizable columns, and light or dark mode. |
+| **Easy to navigate** | Four focused views, five outline levels, and filters by milestone or teammate. |
 | **Progress at a glance** | Burndown, velocity and per-member charts update the moment an issue changes. |
-| **Accountability built in** | An "Acting as" selector records every edit in the activity log under the person who made it. |
+| **Live activity** | A Recent activity panel shows what the team did in the last 24 hours or 3 days (commits with their files, comments, label and status changes, merges), refreshed every minute. |
 | **Dependency aware** | Mark issues as blocked by other issues so bottlenecks are visible before they cause delays. |
-| **Your data stays yours** | Work is saved in your browser and can be exported to or imported from JSON at any time. |
+| **Always up to date** | The dashboard is read-only and keeps no copy of your project: it shows exactly what is on GitHub or GitLab, and **Refresh** loads the latest. |
 
 ## The four views
 
 ### 1. Overview / Gantt
 A timeline of every milestone, objective and issue, with start and due dates, story points and owners. Items follow one hierarchy: **Milestone → User Stories → Tasks / Issues → Sub-tasks / Sub-issues / Bugs**, with anything that has no type tagged **Untracked** and listed last. Each story is a parent row with its work nested and indented underneath, plus a done/total count (click the arrow to fold it).
 - Zoom the timeline by **Month**, **Sprint** or **Week**.
-- Switch between **Summary view**, **Collapse all** and **Expand all** to go from the big picture to the details.
-- Show or hide date columns, add milestones and objectives in place, and spot deadlines that were extended.
+- Pick an outline level: **Milestones**, **Objectives**, **User Stories** (each story's tasks folded), **Stories + Tasks** (only stories that have linked tasks) or **Everything**.
+- Show or hide the date columns, and drag the edge of the name column to widen it (double-click the edge to fit the longest name).
 
 ### 2. Activity
-A live stream of what the team did: commits, issue updates and edits, each stamped with who and when. Perfect for stand-ups and weekly check-ins.
+- **Recent activity:** everything done in the project in the last **24 hours** or **3 days**, read live and refreshed every minute while the tab is open. Filter by member and by kind (commits, comments, changes, issues and merge/pull requests). Click a commit to see its files, branches and +/- lines.
+- A contribution graph, daily commits by member, a contributor list and a searchable activity stream. Perfect for stand-ups and weekly check-ins.
 
 ### 3. Issues / Board
-A drag-and-drop board grouped by status. Each column shows its total story points, and every card shows its labels, assignee and due date. Filter by milestone or by teammate to focus on what matters to you.
+A board grouped by status. Each column shows its total story points, and every card shows its labels, assignee and due date. Filter by milestone, the current sprint or a teammate, and drag a column's edge to widen it.
 
 ### 4. Analytics
 Charts that show progress without any extra work:
@@ -85,16 +86,16 @@ Charts that show progress without any extra work:
 
 ```
  GitHub / GitLab API  ──►  Data source  ──►  Dashboard state  ──►  Gantt · Activity · Board · Analytics
-                                                   │
-                                                   └──►  Browser storage  ·  JSON export / import
+        ▲                                                                       │
+        └──────────────  Refresh / Recent activity (every minute)  ◄────────────┘
 ```
 
 1. **Load.** A data source fetches milestones, objectives (epics), issues, sprints (iterations) and commits from your repository host and shapes them into plain objects.
 2. **Render.** Every view is drawn from that one shared state, so the timeline, the board and the charts always agree with each other.
-3. **Edit.** Click any title, date or field to edit it inline, or open the full issue editor for assignee, status, story points, type, parent, milestone, sprint, labels and blockers.
-4. **Save.** Changes are kept in your browser (press **Ctrl+S**) and can be exported as JSON to share with teammates or keep as a backup.
+3. **Read-only.** Click any issue to see its details (status, assignee, story points, type, parent, sub-items, sprint, labels, blockers and history), with a link to open it on GitHub or GitLab. To change something, change it there; it shows up here on **Refresh**.
+4. **Nothing is stored.** The dashboard keeps no copy of your project. Only the list of projects you connected, your view settings and encrypted tokens stay in the browser. **••• → Download data (JSON)** saves a snapshot if you need one.
 
-The dashboard ships with realistic mock data for a sample project so you can explore every feature before connecting a real repository.
+The dashboard ships with a read-only demo project, **Sprout** (a fictional community-garden platform with plot booking and soil sensors), so you can explore every feature before connecting a real repository.
 
 ## Getting started
 
@@ -103,7 +104,7 @@ The dashboard ships with realistic mock data for a sample project so you can exp
    git clone https://github.com/UIWCyber/UIW-PMD.git
    ```
 2. Open [`git_project-dashboard.html`](git_project-dashboard.html) in Chrome, Edge, Firefox or Safari.
-3. Pick your name in **Acting as**, then explore the four tabs using the mock data.
+3. Explore the four tabs using the demo project.
 4. When you are ready, open **•••** → **Connect a project…** to load your GitHub or GitLab project (below).
 
 ## Connecting GitHub or GitLab
@@ -111,15 +112,18 @@ The dashboard ships with realistic mock data for a sample project so you can exp
 No code changes needed. Click the **•••** menu (top right) → **Connect a project…**
 
 1. **Project link:** paste the address of your repository from the browser, for example `https://github.com/owner/repo` or `https://gitlab.com/group/project`. The dashboard works out whether it is GitHub or GitLab (pick it by hand for a self-hosted GitLab with an unusual address).
-2. **Access token:** a password made just for the dashboard that lets it *read* your project.
-   - **Private projects need one.** Public GitHub repos work without one, but GitHub then allows only 60 requests an hour.
+2. **Sprint 1 starts on (optional):** the date your team's first 2-week sprint begins. Leave it empty to use GitLab iterations, or a 2-week calendar around the work.
+3. **Access token:** a password made just for the dashboard that lets it *read* your project.
+   - **Private projects need one.** Public GitHub repos work without one, but GitHub then allows only 60 requests an hour, so Recent activity only refreshes when you click **Refresh**.
    - Open **What's a token, and how do I get one?** in the popup for step-by-step instructions and a link straight to the right page.
    - GitHub: a fine-grained token with **Contents**, **Issues** and **Pull requests** set to *Read-only* (starts with `github_pat_`).
    - GitLab: a personal access token with only the **read_api** scope (starts with `glpat-`).
    - **Using a GitHub Project board?** To read its *Estimate* / *Story Points* field and its *Status* column, use a classic token with **repo** and **read:project**. For a project owned by an organization, a fine-grained token also works with **Organization permissions → Projects** set to *Read-only*.
-3. Click **Connect**.
+4. Click **Connect**.
 
-Every project you connect is listed under **Recent projects** in the same menu, so you can jump between projects (or back to the demo) in one click. Each project keeps its own saved copy in your browser, and **Reload from GitHub/GitLab** in the menu pulls the latest data. Use **Edit** or **Remove** under *Saved projects* in the popup to change or forget a connection.
+Every project you connect is listed under **Projects** in the same menu, so you can jump between projects (or back to the demo) in one click. **Refresh** in the top bar loads the latest data. Use **Edit** or **Remove** under *Saved projects* in the popup to change or forget a connection.
+
+**Self-hosted GitLab on a private network** (for example over Tailscale) works too, including plain `http://` addresses: turn the network on first. The popup warns you that the token is sent unencrypted over http.
 
 **How tokens are kept safe**
 
@@ -137,16 +141,15 @@ What the dashboard reads, and how it maps it:
 | Objectives | `objective::Name` label, otherwise one group per item type (User Stories, Issues, Tasks, Sub-tasks) | Epic or `objective::Name` label, otherwise grouped by type |
 | Issues | Issues (assignee, labels, open/closed) | Issues (assignee, labels, weight, due date) |
 | Item type | Issue type, title prefix or label (see [below](#setting-up-your-issues)) | Task type, title prefix or label |
-| Parent / sub-items | Sub-issues, "Parent: #7" in the description, or a `- [ ] #12` task list in the parent | "Parent: #7" or a task list |
+| Parent / sub-items | Sub-issues, "Parent: #7" in the description, or a `- [ ] #12` task list in the parent | Child items (work-item hierarchy), "Parent: #7" or a task list |
 | Story points | Project field *Estimate* / *Story Points*, an `sp: 5` label, or "Story points: 5" in the description. No default: unestimated items show **–** | Weight, an `sp: 5` label, or "Story points: 5" in the description |
 | Status | Project *Status* column (with a token), or labels containing *ready*, *in progress* or *review*; closed = Done | Labels, e.g. `status::in progress`; closed = Done |
 | Blocked by | "Blocked by #12" or "Depends on #12" in the description | Same |
-| Sprints | 2-week calendar around the work | Iterations (Premium), otherwise a 2-week calendar |
+| Sprints | *Sprint 1 starts on* date, otherwise a 2-week calendar around the work | *Sprint 1 starts on* date, otherwise iterations (Premium), otherwise a 2-week calendar |
 | Activity | Commits, issues opened/closed, merged pull requests | Commits, issues opened/closed, merged merge requests |
+| Recent activity (live) | Commits on every branch, comments, issue/PR timeline (labels, milestone, assignees, title, closed, merged), branches, releases, reviews | Commits on every branch, comments and system notes, label and milestone changes, the project event stream |
 
-Edits made in the dashboard stay in your browser; they are not written back to GitHub or GitLab.
-
-After updating the dashboard file, use **•••** → **Reload from GitHub/GitLab** once. Copies saved by an older version keep the old layout, and the status line tells you so.
+The dashboard never writes to GitHub or GitLab. Copies of projects saved by older versions of the dashboard are removed from the browser the first time this version opens; your project list and tokens are kept.
 
 ## Setting up your issues
 
@@ -177,7 +180,7 @@ A GitHub issue type set in the repository wins over the title, and the title win
 | Item with no type | Tagged **Untracked**, in its milestone's **Untracked** group, listed last |
 | Item with no milestone | **No milestone**, at the bottom, grouped the same way |
 
-Inside every group and every story, items are listed in hierarchy order (tasks, issues, sub-tasks, bugs, untracked), then by start date. Bugs and untracked items count toward their milestone's progress like everything else. Changing an item's type in the issue form moves it to the group a reload would put it in.
+Inside every group and every story, items are listed in hierarchy order (tasks, issues, sub-tasks, bugs, untracked), then by start date. Bugs and untracked items count toward their milestone's progress like everything else. Change an item's type on GitHub or GitLab and it moves to its new group on the next **Refresh**.
 
 **2. Link tasks to their story.** Use any one of these:
 
@@ -206,7 +209,7 @@ On GitLab, the issue's weight is used first.
 
 ## Tracking your progress
 
-- **Daily:** check **Activity** to see what changed and **Board** to move your own cards.
+- **Daily:** check **Recent activity** to see what changed and the **Board** to see where every card stands.
 - **Each sprint:** watch the **Burndown** line against the ideal line and compare **Velocity** with previous sprints.
 - **Each milestone:** use the **Gantt** summary view to confirm every objective is on schedule, and look for blocked issues.
 - **Team health:** review **Workload by member** so no one is overloaded and every contribution is visible.
@@ -215,9 +218,8 @@ On GitLab, the issue's weight is used first.
 
 | Shortcut | Action |
 | --- | --- |
-| `Ctrl+S` / `Cmd+S` | Save to this browser |
-| `Enter` | Confirm an inline edit |
-| `Esc` | Cancel an edit or close a dialog |
+| `Esc` | Close a dialog |
+| `Enter` | Connect, in the connect popup |
 
 ## Open design decisions
 
