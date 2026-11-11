@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- No outside scripts, styles or images may load; the page may only talk to https APIs (GitHub, GitLab). -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src https:; base-uri 'none'; form-action 'none'">
-<title>Nimbus Project Dashboard</title>
+<!-- No outside scripts, styles or images may load; the page may only talk to the project's API
+     (GitHub or GitLab; http is allowed for self-hosted GitLab reached over a private network such as Tailscale). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src https: http:; base-uri 'none'; form-action 'none'">
+<title>Project Dashboard</title>
 <style>
 :root{
   --bg:#0d1117; --bg2:#010409; --panel:#161b22; --panel2:#0d1117; --border:#30363d; --border2:#21262d;
   --text:#e6edf3; --muted:#8b949e; --faint:#6e7681; --accent:#2f81f7; --danger:#f85149; --ok:#3fb950; --warn:#d29922;
-  /* member accents: validated categorical slots (blue / orange / aqua / yellow) stepped for the dark surface */
-  --c-jera:#3987e5; --c-marcus:#d95926; --c-priya:#199e70; --c-noah:#c98500; --c-team:#768390;
-  --t-jera:#ffffff; --t-marcus:#ffffff; --t-priya:#03140d; --t-noah:#1a1200; --t-team:#ffffff;
+  /* "Team" (unassigned) accent; members get their colors from MEMBER_PALETTE */
+  --c-team:#768390; --t-team:#ffffff;
   --hm0:#161b22; --hm1:#0e4429; --hm2:#006d32; --hm3:#26a641; --hm4:#39d353;
   --radius:8px; --shadow:0 8px 24px rgba(1,4,9,.55);
   color-scheme:dark;
@@ -20,8 +20,7 @@
 :root[data-theme="light"]{
   --bg:#ffffff; --bg2:#f6f8fa; --panel:#ffffff; --panel2:#f6f8fa; --border:#d0d7de; --border2:#eaeef2;
   --text:#1f2328; --muted:#636c76; --faint:#8c959f; --accent:#0969da; --danger:#cf222e; --ok:#1a7f37; --warn:#9a6700;
-  --c-jera:#2a78d6; --c-marcus:#eb6834; --c-priya:#1baf7a; --c-noah:#eda100; --c-team:#6e7781;
-  --t-jera:#ffffff; --t-marcus:#ffffff; --t-priya:#03140d; --t-noah:#1a1200; --t-team:#ffffff;
+  --c-team:#6e7781; --t-team:#ffffff;
   --hm0:#ebedf0; --hm1:#9be9a8; --hm2:#40c463; --hm3:#30a14e; --hm4:#216e39;
   --shadow:0 8px 24px rgba(140,149,159,.3);
   color-scheme:light;
@@ -36,9 +35,10 @@ code,.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,mono
 
 /* ---------- top bar ---------- */
 .topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-wrap:wrap}
-.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
-.brand .dot{width:10px;height:10px;border-radius:3px;background:linear-gradient(135deg,var(--c-marcus),var(--c-jera))}
-.brand small{font-weight:500;color:var(--muted);font-size:12px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;min-width:0;white-space:nowrap}
+.brand .dot{width:10px;height:10px;border-radius:3px;background:linear-gradient(135deg,#d95926,#3987e5);flex:none}
+/* the project's description: one short line, the full text on hover */
+.brand small{font-weight:500;color:var(--muted);font-size:12px;max-width:220px;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:3px;flex-wrap:wrap}
 .tab{padding:5px 14px;border-radius:6px;cursor:pointer;color:var(--muted);font-weight:600;font-size:13px;border:none;background:none;display:flex;align-items:center;gap:6px}
 .tab:hover{color:var(--text)}
@@ -55,10 +55,11 @@ code,.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,mono
 .btn.attn{border-color:var(--warn);color:var(--warn)}
 select.sel,input.inp{background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:13px;font-family:inherit}
 select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,129,247,.25)}
-.viewer{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
-.status-line{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--faint)}
-.status-line .dirty{color:var(--warn);font-weight:600}
+.status-line{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--faint);white-space:nowrap;min-width:0}
 .status-line .ok{color:var(--ok)}
+/* warnings from the last load: a small chip, the details on hover */
+.status-line .note{color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);border-radius:20px;padding:0 8px;cursor:help}
+.ro-tag{font-size:11px;font-weight:600;color:var(--muted);border:1px solid var(--border);border-radius:20px;padding:1px 9px;white-space:nowrap}
 .legend{display:flex;gap:14px;align-items:center;padding:7px 16px;background:var(--panel2);border-bottom:1px solid var(--border);flex-wrap:wrap;font-size:12px}
 .legend .item{display:flex;align-items:center;gap:6px;color:var(--muted)}
 .legend .sw{width:12px;height:12px;border-radius:3px}
@@ -79,7 +80,9 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
 .menu-pop .proj span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .menu-pop .proj small{display:block;font-size:11px;color:var(--faint);overflow:hidden;text-overflow:ellipsis}
 .menu-pop button:hover small,.menu-pop button:hover .ck{color:inherit;opacity:.85}
-
+.saved-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2);font-size:13px}
+.saved-row:last-child{border-bottom:none}
+.saved-row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* ---------- connect project ---------- */
 .tokhelp{border:1px solid var(--border);border-radius:8px;background:var(--panel2);padding:10px 12px;font-size:13px;line-height:1.5}
 .tokhelp summary{cursor:pointer;font-weight:600;color:var(--accent)}
@@ -90,9 +93,6 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
 .warnbox{border:1px solid var(--warn);color:var(--text);background:color-mix(in srgb,var(--warn) 10%,transparent);border-radius:8px;padding:8px 12px;font-size:13px}
 .warnbox b{color:var(--warn)}
 .cerr{border:1px solid var(--danger);color:var(--danger);background:color-mix(in srgb,var(--danger) 10%,transparent);border-radius:8px;padding:8px 12px;font-size:13px}
-.saved-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2);font-size:13px}
-.saved-row:last-child{border-bottom:none}
-.saved-row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #view{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .pane{flex:1;overflow:auto;min-height:0}
 .card-p{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius)}
@@ -127,12 +127,20 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
 
 /* ---------- GANTT spreadsheet ---------- */
 .g-scroll{flex:1;overflow:auto;min-height:0;border-top:1px solid var(--border);position:relative}
-.gantt{--leftw:720px;--cols:1fr 108px 46px 66px 66px;position:relative;min-width:max-content}
-.gantt.nodates{--leftw:580px;--cols:1fr 108px 46px}
+/* left panel = name column (--namew, draggable) + fixed columns (--fixw) */
+.gantt{--namew:434px;--fixw:286px;--leftw:calc(var(--namew) + var(--fixw));--cols:1fr 108px 46px 66px 66px;position:relative;min-width:max-content}
+.gantt.nodates{--namew:426px;--fixw:154px;--cols:1fr 108px 46px}
 .gantt.nodates .c-date{display:none}
 .g-head{display:flex;position:sticky;top:0;z-index:8;background:var(--bg2);border-bottom:1px solid var(--border)}
 .g-cells{display:grid;grid-template-columns:var(--cols);width:var(--leftw);flex:none;position:sticky;left:0;z-index:4;background:var(--panel2);border-right:1px solid var(--border)}
 .g-head .g-cells{z-index:9;background:var(--bg2);height:66px;align-items:end}
+/* drag the panel's right edge to widen the name column; double-click it to fit the longest name */
+.g-cells::after{content:"";position:absolute;top:0;bottom:0;right:-4px;width:8px;cursor:col-resize;z-index:5;background:linear-gradient(var(--accent),var(--accent)) center/2px 100% no-repeat;opacity:0;transition:opacity .15s}
+.g-cells:hover::after{opacity:.35}
+.gantt.resizing .g-cells::after{opacity:1}
+.g-head .g-cells::after{opacity:.5;background:linear-gradient(var(--muted),var(--muted)) 2px 50%/1px 18px no-repeat,linear-gradient(var(--muted),var(--muted)) 5px 50%/1px 18px no-repeat}
+.g-head .g-cells:hover::after{opacity:1}
+.gantt.resizing,.gantt.resizing *{cursor:col-resize!important;user-select:none}
 .g-head .g-cells>div{padding:0 10px 7px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
 .g-head .g-cells>div.r{text-align:right}
 .g-timehead{position:relative;flex:none;height:66px}
@@ -142,15 +150,12 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
 .th-ranges{top:46px;height:20px}
 .th-m{position:absolute;top:0;height:20px;border-left:1px solid var(--border);font-size:11px;font-weight:700;padding:2px 8px;color:var(--text);white-space:nowrap;overflow:hidden}
 .th-m.tbd{color:var(--warn)}
-.th-s{position:absolute;top:0;height:46px;border-left:1px solid var(--border2);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;padding:0 2px;overflow:hidden}
+.th-s{position:absolute;top:0;height:46px;border-left:1px solid var(--border2);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:background .15s;padding:0 2px;overflow:hidden}
 .th-s:hover{background:rgba(47,129,247,.10)}
 .th-s b{font-size:12px;color:var(--text);white-space:nowrap}
 .th-s span{font-size:10px;color:var(--faint);white-space:nowrap}
 .th-s.cur{background:rgba(47,129,247,.14);box-shadow:inset 0 -2px 0 var(--accent)}
 .th-s.cur b{color:var(--accent)}
-.th-s .ext{position:absolute;top:2px;right:4px;font-size:9px;color:var(--warn)}
-.th-s .pen{position:absolute;top:2px;left:4px;font-size:10px;color:var(--faint);opacity:0}
-.th-s:hover .pen{opacity:1}
 .g-body{position:relative}
 .g-bg{position:absolute;top:0;bottom:0;left:var(--leftw);pointer-events:none;z-index:0}
 .g-bg .sb{position:absolute;top:0;bottom:0}
@@ -190,34 +195,18 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
 .g-row .num:hover{color:var(--accent);text-decoration:underline}
 .g-row .nm{overflow:hidden;text-overflow:ellipsis;min-width:0}
 .g-row.done .nm{color:var(--faint);text-decoration:line-through}
-.g-row .rowact{opacity:0;margin-left:auto;display:flex;gap:2px;flex:none}
-.g-row:hover .rowact{opacity:1}
-.iconbtn{border:1px solid transparent;background:none;color:var(--muted);cursor:pointer;border-radius:5px;font-size:12px;padding:1px 6px;line-height:16px}
-.iconbtn:hover{border-color:var(--border);color:var(--text);background:var(--panel)}
 .g-row.dim{opacity:.35}
 .cnt-badge{font-size:11px;font-weight:600;padding:0 7px;border-radius:20px;background:var(--border2);color:var(--muted);flex:none}
 
-/* inline edit, GitHub style */
-.ed{position:relative;border-radius:4px;cursor:text}
-.ed:hover{box-shadow:inset 0 0 0 1px var(--border)}
-.nm.ed:hover::after{content:"✎";font-size:11px;color:var(--faint);margin-left:6px}
-.editing{box-shadow:none!important;overflow:visible!important}
-.ie{display:flex;align-items:center;gap:4px;width:100%}
-.ie input,.ie select{width:100%;min-width:0;background:var(--bg);color:var(--text);border:1px solid var(--accent);border-radius:5px;padding:3px 6px;font-size:12.5px;font-family:inherit;box-shadow:0 0 0 3px rgba(47,129,247,.25);outline:none}
-.ie .btn{padding:2px 8px;font-size:11.5px}
-.g-row .ed.flash{animation:flash 1.2s ease}
 @keyframes flash{0%{background:rgba(63,185,80,.35)}100%{background:transparent}}
 
-.bar{position:absolute;top:7px;height:20px;border-radius:5px;display:flex;align-items:center;gap:5px;padding:0 4px 0 6px;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,.35);min-width:8px;touch-action:none;user-select:none;transition:filter .12s}
+.bar{position:absolute;top:7px;height:20px;border-radius:5px;display:flex;align-items:center;gap:5px;padding:0 4px 0 6px;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.35);min-width:8px;user-select:none;transition:filter .12s}
 .bar:hover{filter:brightness(1.12)}
-.bar.dragging{cursor:grabbing;filter:brightness(1.15);outline:2px solid var(--text);z-index:5}
 .bar.tbd{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.16) 0 6px,transparent 6px 12px)}
 .bar.done{opacity:.5}
 .bar.late{box-shadow:0 0 0 2px var(--danger)}
 .bar .bsp{background:rgba(0,0,0,.25);border-radius:9px;padding:0 5px;font-size:10px;line-height:15px;flex:none}
 .bar .btxt{overflow:hidden;text-overflow:ellipsis}
-.bar .rh{position:absolute;right:0;top:0;bottom:0;width:7px;cursor:ew-resize}
-.bar .rh:hover{background:rgba(255,255,255,.3)}
 .sbar{position:absolute;border-radius:3px;overflow:hidden;pointer-events:auto}
 .sbar>i{position:absolute;left:0;top:0;bottom:0}
 .sbar.ms{top:15px;height:10px}
@@ -227,14 +216,17 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
 
 /* ---------- board ---------- */
 .board{display:flex;gap:12px;padding:12px 16px 16px;min-width:max-content;height:100%}
-.bcol{background:var(--panel2);border:1px solid var(--border);border-radius:var(--radius);width:280px;display:flex;flex-direction:column;max-height:100%}
+.bcol{background:var(--panel2);border:1px solid var(--border);border-radius:var(--radius);width:280px;display:flex;flex-direction:column;max-height:100%;position:relative;flex:none}
+/* drag a column's right edge to widen it; double-click the edge to reset it */
+.bcol-rs{position:absolute;top:0;bottom:0;right:-7px;width:10px;cursor:col-resize;z-index:3;touch-action:none;background:linear-gradient(var(--accent),var(--accent)) center/2px 100% no-repeat;opacity:0;transition:opacity .15s}
+.bcol:hover .bcol-rs{opacity:.35}
+.bcol-rs:hover,.board.resizing .bcol-rs.on{opacity:1}
+.board.resizing,.board.resizing *{cursor:col-resize!important;user-select:none}
 .bcol h3{margin:0;padding:10px 12px;font-size:13px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
 .bcol h3 .cnt{margin-left:auto;background:var(--border2);color:var(--muted);border-radius:20px;padding:1px 8px;font-size:11px}
-.bcol .list{padding:8px;overflow:auto;display:flex;flex-direction:column;gap:8px;flex:1;min-height:60px;transition:background .15s}
-.bcol .list.dragover{background:rgba(47,129,247,.08);outline:2px dashed var(--accent);outline-offset:-4px;border-radius:6px}
-.kcard{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--c-team);border-radius:6px;padding:8px 10px;cursor:grab;font-size:13px;transition:transform .12s,box-shadow .12s}
+.bcol .list{padding:8px;overflow:auto;display:flex;flex-direction:column;gap:8px;flex:1;min-height:60px}
+.kcard{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--c-team);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:13px;transition:box-shadow .12s}
 .kcard:hover{box-shadow:var(--shadow)}
-.kcard.drag{opacity:.4}
 .kcard .ctop{display:flex;align-items:center;gap:6px;color:var(--faint);font-size:11px;margin-bottom:3px}
 .kcard .cname{line-height:1.35}
 .kcard .cbot{display:flex;align-items:center;gap:6px;margin-top:7px;font-size:11px;color:var(--muted);flex-wrap:wrap}
@@ -269,6 +261,39 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
 .ev.new{animation:flash 1.6s ease}
 .mem-row{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border2);font-size:13px}
 .mem-row:last-child{border-bottom:none}
+/* recent commits (last 24 h, live) */
+.rc-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border2);flex-wrap:wrap}
+.rc-live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.rc-live i{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 60%,transparent);animation:rcPulse 2s infinite}
+.rc-live.off i{background:var(--faint);animation:none}
+.rc-live.err i{background:var(--danger);animation:none}
+@keyframes rcPulse{70%{box-shadow:0 0 0 6px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.rc-list{max-height:360px;overflow:auto;padding:0 14px}
+.rc{border-bottom:1px dashed var(--border2)}
+.rc:last-child{border-bottom:none}
+.rc.new>.rc-row{animation:flash 1.6s ease}
+.rc-row{display:flex;gap:10px;align-items:center;padding:8px 0;font-size:13px;cursor:pointer;width:100%;background:none;border:none;color:inherit;text-align:left;font-family:inherit}
+.rc-row:hover .rc-title{color:var(--accent)}
+.rc-row .chev{flex:none}
+.rc-ico{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:none;border:1px solid var(--border);background:var(--panel2)}
+.rc:not(.open) .rc-row .chev{transform:rotate(-90deg)}
+.rc-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rc-row code,.rc-det code{background:var(--border2);padding:0 5px;border-radius:4px;font-size:12px}
+.rc-row .who{font-weight:600;flex:none}
+.rc-stat{font-size:12px;font-variant-numeric:tabular-nums;flex:none}
+.rc-stat .a,.rc-files .a{color:var(--ok)} .rc-stat .d,.rc-files .d{color:var(--danger)}
+.rc-ago{font-size:11px;color:var(--faint);white-space:nowrap;flex:none;min-width:58px;text-align:right}
+.rc-det{padding:2px 0 12px 28px;font-size:12.5px;display:flex;flex-direction:column;gap:8px}
+.rc-det pre{margin:0;white-space:pre-wrap;word-break:break-word;font-family:inherit;background:var(--panel2);border:1px solid var(--border2);border-radius:6px;padding:8px 10px}
+.rc-kv{display:grid;grid-template-columns:max-content 1fr;gap:3px 12px;color:var(--muted)}
+.rc-kv b{color:var(--text);font-weight:500;word-break:break-all}
+.rc-files{list-style:none;margin:0;padding:0;border:1px solid var(--border2);border-radius:6px;max-height:200px;overflow:auto}
+.rc-files li{display:flex;gap:8px;align-items:center;padding:3px 10px;border-bottom:1px solid var(--border2);font-size:12px}
+.rc-files li:last-child{border-bottom:none}
+.rc-files .p{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,Consolas,monospace}
+.rc-files .tag{font-size:10px;font-weight:700;padding:0 5px;border-radius:4px;border:1px solid currentColor;flex:none}
+.rc-det .ref{cursor:pointer;color:var(--accent)}
+.rc-det a{color:var(--accent)}
 
 /* ---------- analytics ---------- */
 .chart svg{display:block;width:100%;height:auto;overflow:visible}
@@ -300,7 +325,16 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
 .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,129,247,.25)}
 .field textarea{resize:vertical;min-height:70px}
 .modal footer{display:flex;gap:10px;padding:12px 18px;border-top:1px solid var(--border);align-items:center;position:sticky;bottom:0;background:var(--panel)}
-.modal footer .del{color:var(--danger);margin-right:auto}
+/* read-only issue details */
+.idet{padding:16px 18px;display:flex;flex-direction:column;gap:14px}
+.idet h3{margin:0;font-size:16px;line-height:1.4}
+.idet .desc{margin:0;white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:13px;background:var(--panel2);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;max-height:280px;overflow:auto}
+.idet .kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 18px}
+.idet .kv>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.idet .kv span{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.idet .kv b{font-weight:500;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.idet .ref{cursor:pointer;color:var(--accent)}
+.idet .ref:hover{text-decoration:underline}
 .hist{padding:0 18px 12px}
 .hist h4{font-size:12px;text-transform:uppercase;color:var(--muted);letter-spacing:.4px;margin:6px 0 4px}
 .hint{font-size:12px;color:var(--faint)}
@@ -332,7 +366,7 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
   #view{overflow:visible}
   .g-scroll{min-height:75vh;flex:none;height:75vh}
   .legend .item span.role{display:none}
-  .gantt{--leftw:420px;--cols:1fr 60px 40px}
+  .gantt,.gantt.nodates{--namew:320px;--fixw:100px;--cols:1fr 60px 40px}
   .gantt .c-date{display:none}
   .mbody{grid-template-columns:1fr}.field.two{grid-column:auto}
   .brand small{display:none}
@@ -342,7 +376,7 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
 </head>
 <body>
 <div class="topbar">
-  <div class="brand" id="brand"><span class="dot"></span>Nimbus Project Dashboard <small>Campus Events Platform · Sep 2026 – Mar 2027</small></div>
+  <div class="brand" id="brand"><span class="dot"></span>Project Dashboard <small>Not connected · ••• → Connect a project…</small></div>
   <nav class="tabs" id="tabs">
     <button class="tab active" data-view="overview">Overview / Gantt</button>
     <button class="tab" data-view="activity">Activity</button>
@@ -351,17 +385,15 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
   </nav>
   <div class="spacer"></div>
   <span class="status-line" id="statusLine"></span>
-  <label class="viewer" title="Edits you make are recorded in the activity log under this name">Acting as
-    <select class="sel" id="viewer"></select></label>
-  <button class="btn" id="btnSave" title="Save to this browser (Ctrl+S)">Save</button>
+  <span class="ro-tag" id="roTag" title="This dashboard only reads your project. Make changes on GitHub or GitLab; they show up here on Refresh.">Read-only</span>
+  <button class="btn" id="btnReset" title="Load the latest data">Refresh</button>
   <button class="btn ghost" id="btnTheme" title="Toggle light/dark" aria-label="Toggle theme"><svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg></button>
   <details class="menu"><summary class="btn ghost" title="More">•••</summary><div class="menu-pop">
     <button id="btnConnect">Connect a project…</button>
-    <div class="menu-sec">Recent projects</div>
+    <div class="menu-sec">Projects</div>
     <div id="recentList" style="display:flex;flex-direction:column"></div>
     <hr>
-    <button id="btnExport">Export JSON</button><button id="btnImport">Import JSON</button><button id="btnReset">Reset to mock data</button><button id="btnClear" class="danger">Clear all data…</button></div></details>
-  <input type="file" id="fileIn" accept="application/json" hidden>
+    <button id="btnExport">Download data (JSON)</button></div></details>
 </div>
 <div class="legend" id="legend"></div>
 <main id="view"></main>
@@ -369,46 +401,13 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
 <!-- issue modal -->
 <div class="overlay" id="ovIssue">
   <div class="modal" role="dialog" aria-modal="true">
-    <header><h2 id="mTitle">Edit issue</h2><button class="x" data-close>&times;</button></header>
-    <div class="mbody">
-      <div class="field full"><label for="fTitle">Title</label><input id="fTitle" type="text"></div>
-      <div class="field full"><label for="fDesc">Description</label><textarea id="fDesc" placeholder="Describe the work, acceptance criteria, links…"></textarea></div>
-      <div class="field"><label for="fAssignee">Assignee</label><select id="fAssignee"></select></div>
-      <div class="field"><label for="fStatus">Status</label><select id="fStatus"></select></div>
-      <div class="field"><label for="fSp">Story points (weight)</label><select id="fSp"></select></div>
-      <div class="field"><label for="fKind">Type</label><select id="fKind"></select></div>
-      <div class="field two"><label for="fParent">Parent (issue #, for tasks and sub-tasks)</label><input id="fParent" type="text" placeholder="e.g. 7"></div>
-      <div class="field"><label for="fMs">Milestone</label><select id="fMs"></select></div>
-      <div class="field two"><label for="fObj">Objective</label><select id="fObj"></select></div>
-      <div class="field"><label for="fStart">Start date</label><input id="fStart" type="date"></div>
-      <div class="field"><label for="fEnd">Due date</label><input id="fEnd" type="date"></div>
-      <div class="field"><label>Sprint</label><input id="fSprint" type="text" readonly></div>
-      <div class="field two"><label for="fDeps">Blocked by (issue #s, comma separated)</label><input id="fDeps" type="text" placeholder="e.g. 7, 8"></div>
-      <div class="field"><label for="fLabels">Labels</label><input id="fLabels" type="text" placeholder="design, web"></div>
-      <div class="field full"><label><input id="fTbd" type="checkbox" style="margin-right:6px">Date is TBD (not yet scheduled)</label></div>
-    </div>
+    <header><h2 id="mTitle">Issue</h2><button class="x" data-close aria-label="Close">&times;</button></header>
+    <div class="idet" id="mBody"></div>
     <div class="hist" id="mHist"></div>
     <footer>
-      <button class="btn del" id="mDelete">Delete issue</button>
-      <button class="btn" data-close>Cancel</button>
-      <button class="btn primary" id="mSave">Save changes</button>
-    </footer>
-  </div>
-</div>
-
-<!-- sprint modal -->
-<div class="overlay" id="ovSprint">
-  <div class="modal" role="dialog" aria-modal="true" style="max-width:480px">
-    <header><h2 id="sTitle">Edit sprint</h2><button class="x" data-close>&times;</button></header>
-    <div class="mbody" style="grid-template-columns:1fr 1fr">
-      <div class="field full"><label for="sGoal">Sprint goal</label><input id="sGoal" type="text"></div>
-      <div class="field"><label for="sStart">Start</label><input id="sStart" type="date"></div>
-      <div class="field"><label for="sEnd">End</label><input id="sEnd" type="date"></div>
-      <div class="field full hint" id="sHint"></div>
-    </div>
-    <footer>
-      <button class="btn" data-close style="margin-left:auto">Cancel</button>
-      <button class="btn primary" id="sSave">Save sprint</button>
+      <span class="hint" id="mHint">Read-only.</span>
+      <a class="btn primary" id="mOpen" href="#" target="_blank" rel="noopener" style="margin-left:auto">Open ↗</a>
+      <button class="btn" data-close>Close</button>
     </footer>
   </div>
 </div>
@@ -424,15 +423,19 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
       <div class="field"><label for="cProvider">Hosted on</label>
         <select id="cProvider"><option value="github">GitHub</option><option value="gitlab">GitLab</option></select></div>
       <div class="field"><label for="cName">Name in this dashboard (optional)</label><input id="cName" type="text" placeholder="e.g. Capstone team 3"></div>
+      <div class="field full"><label for="cSprint">Sprint 1 starts on (optional)</label>
+        <input id="cSprint" type="date">
+        <div class="hint">Sprints are 2 weeks long from this date. Leave it empty to use GitLab iterations, or a 2-week calendar around the work.</div></div>
       <div class="field full"><label for="cToken">Access token <span id="cTokOpt" style="font-weight:400"></span></label>
         <input id="cToken" type="password" autocomplete="off" spellcheck="false">
         <div class="hint" id="cTokState"></div></div>
       <div class="field full"><label for="cTtl">Keep the token on this computer for</label>
         <select id="cTtl"><option value="tab">Only until I close this tab</option><option value="1">1 day</option><option value="7">7 days</option><option value="30">30 days</option></select></div>
       <div class="field full warnbox" id="cShared"><span><b>⚠ Shared or lab computer?</b> Choose <b>Only until I close this tab</b>, and close the tab when you're done. Otherwise the next person to use this browser can open your project with your token.</span></div>
+      <div class="field full warnbox" id="cHttp" hidden><span><b>⚠ Plain http link.</b> The token is sent unencrypted. Only use this for a self-hosted GitLab on a private network (for example over Tailscale).</span></div>
       <div class="field full cerr" id="cErr" role="alert" hidden></div>
       <div class="field full" id="cHelp"></div>
-      <div class="field full hint">The dashboard only reads from your project. Edits you make here stay in this browser and are not sent back to GitHub or GitLab.</div>
+      <div class="field full hint">The dashboard is read-only: it shows what's in your project and never changes anything on GitHub or GitLab.</div>
     </div>
     <div class="hist" id="cSaved"></div>
     <footer>
@@ -460,252 +463,230 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
    Everything the UI renders comes from fetchProject(conn). With no
    connection it returns the MockSource demo; otherwise GitHubSource or
    GitLabSource read the project's API and normalizeLive() maps the
-   results into the same plain shapes. Connections are set up from
-   ••• → Connect a project… and kept in the browser (see CONNECTIONS).
+   results into the same plain shapes. The dashboard is read-only and keeps
+   no copy of a project: what's on screen is what's on GitHub or GitLab.
+   Projects are added from ••• → Connect a project… and listed in the same
+   menu (see CONNECTIONS).
    ===================================================================== */
 
+/* ---------- DEMO: Sprout ----------
+   A fictional community-garden platform: gardeners book plots on the web, soil-moisture sensors
+   report from each bed, and coordinators get alerts and season reports.
+   The demo is built as raw GitHub/GitLab-style lists and run through normalizeLive(), exactly like a
+   live project, so it shows every feature: user stories with nested tasks, sub-tasks and bugs,
+   untracked items, a "No milestone" group, blockers and unestimated work.
+   Dates are offsets in days from the kickoff, which is placed ~10 weeks before today, so the demo
+   is always mid-project (the current sprint, overdue items and recent activity stay meaningful). */
 const MockSource = (() => {
-  const AS_OF = "2026-10-22";           // mock data is a snapshot taken on this date
-  // Nimbus: a fictional campus event booking platform (web + mobile), used as demo data.
-  // [id, title, assignee, start, end, milestone, blocked-by, tbd]
-  const TASKS = [
-    [1,"Project kickoff & working agreement","Team","2026-09-01","2026-09-02",1,[],false],
-    [2,"Stakeholder interviews","Team","2026-09-02","2026-09-08",1,[1],false],
-    [3,"Define user personas & journeys","Jera","2026-09-03","2026-09-09",1,[1],false],
-    [4,"Write API requirements","Marcus","2026-09-07","2026-09-11",1,[2],false],
-    [5,"Mobile platform requirements","Priya","2026-09-07","2026-09-11",1,[2],false],
-    [6,"Set up repo, branching & CI skeleton","Noah","2026-09-02","2026-09-07",1,[1],false],
-    [7,"Product requirements document","Jera","2026-09-10","2026-09-17",1,[3,4,5],false],
-    [8,"Requirements sign-off","Team","2026-09-18","2026-09-18",1,[7],false],
-    [9,"Low-fidelity wireframes","Jera","2026-09-21","2026-09-29",2,[8],false],
-    [10,"Design system & component tokens","Jera","2026-09-28","2026-10-09",2,[9],false],
-    [11,"High-fidelity mockups","Jera","2026-10-07","2026-10-21",2,[10],false],
-    [12,"Usability test round 1","Team","2026-10-19","2026-10-23",2,[11],false],
-    [13,"Data model & ERD","Marcus","2026-09-21","2026-09-30",2,[8],false],
-    [14,"REST API contract (OpenAPI)","Marcus","2026-09-29","2026-10-12",2,[13],false],
-    [15,"Auth & SSO approach","Marcus","2026-10-08","2026-10-16",2,[14],false],
-    [16,"Mobile app architecture","Priya","2026-09-21","2026-10-02",2,[8],false],
-    [17,"Offline sync strategy","Priya","2026-10-01","2026-10-14",2,[16],false],
-    [18,"Push notification design","Priya","2026-10-13","2026-10-22",2,[16],false],
-    [19,"Cloud infrastructure plan","Noah","2026-09-21","2026-10-02",2,[6],false],
-    [20,"Staging environment","Noah","2026-10-01","2026-10-16",2,[19],false],
-    [21,"Security & privacy review","Noah","2026-10-14","2026-10-23",2,[15,20],false],
-    [22,"Architecture decision records","Team","2026-10-19","2026-10-28",2,[14,17,21],false],
-    [23,"Architecture review deck","Jera","2026-10-22","2026-10-29",2,[22],false],
-    [24,"Auth service & user accounts","Marcus","2026-11-02","2026-11-13",3,[22],false],
-    [25,"Events & venues API","Marcus","2026-11-09","2026-11-25",3,[24],false],
-    [26,"Booking & waitlist API","Marcus","2026-11-23","2026-12-09",3,[25],false],
-    [27,"Web app shell & routing","Jera","2026-11-02","2026-11-10",3,[23],false],
-    [28,"Event discovery pages","Jera","2026-11-09","2026-11-24",3,[27,25],false],
-    [29,"Booking checkout flow (web)","Jera","2026-11-23","2026-12-08",3,[28,26],false],
-    [30,"Mobile app shell & navigation","Priya","2026-11-02","2026-11-11",3,[22],false],
-    [31,"Mobile event browsing","Priya","2026-11-10","2026-11-25",3,[30,25],false],
-    [32,"Mobile booking & tickets","Priya","2026-11-24","2026-12-09",3,[31,26],false],
-    [33,"CI/CD pipelines for web, API & mobile","Noah","2026-11-02","2026-11-13",3,[20],false],
-    [34,"Automated test suite setup","Noah","2026-11-12","2026-11-24",3,[33],false],
-    [35,"Observability & logging","Noah","2026-11-23","2026-12-04",3,[33],false],
-    [36,"MVP integration testing","Team","2026-12-09","2026-12-15",3,[29,32,34],false],
-    [37,"MVP demo","Team","2026-12-16","2026-12-18",3,[36],false],
-    [38,"Payments integration","Marcus","2027-01-04","2027-01-15",4,[37],false],
-    [39,"Calendar sync (Google & Outlook)","Marcus","2027-01-11","2027-01-22",4,[37],false],
-    [40,"Email & push notifications","Priya","2027-01-04","2027-01-15",4,[37],false],
-    [41,"Organizer dashboard","Jera","2027-01-04","2027-01-20",4,[37],false],
-    [42,"Accessibility audit & fixes","Jera","2027-01-18","2027-01-29",4,[41],false],
-    [43,"Load & performance testing","Noah","2027-01-18","2027-01-29",4,[38,39],false],
-    [44,"Beta onboarding & feedback form","Team","2027-01-25","2027-02-02",4,[41,40],false],
-    [45,"Closed beta with 50 users","Team","2027-02-01","2027-02-10",4,[44,43],false],
-    [46,"Beta bug triage","Team","2027-02-03","2027-02-12",4,[45],false],
-    [47,"Fix critical beta issues","Team","2027-02-15","2027-02-26",5,[46],true],
-    [48,"App store submissions","Priya","2027-02-22","2027-03-05",5,[47],true],
-    [49,"Production cutover plan","Noah","2027-02-22","2027-03-03",5,[47],true],
-    [50,"Marketing site & launch page","Jera","2027-02-22","2027-03-08",5,[47],true],
-    [51,"Admin & support runbooks","Marcus","2027-03-01","2027-03-10",5,[49],true],
-    [52,"Public launch","Team","2027-03-15","2027-03-17",5,[48,49,50],true],
-    [53,"Post-launch monitoring","Noah","2027-03-17","2027-03-26",5,[52],true],
-    [54,"Retrospective & handoff docs","Team","2027-03-22","2027-03-26",5,[52],true],
-  ];
+  const TODAY_OFFSET = 72;     // the kickoff is this many days before today (rounded back to a Monday)
+  const PEOPLE = ["Avery","Diego","Mei","Sam"];
+  const ROLES = {Avery:"Frontend · Web & Design", Diego:"Backend · API & Payments", Mei:"Hardware · Soil Sensors", Sam:"DevOps · CI/CD & QA"};
+  const AREA = {Avery:"web", Diego:"api", Mei:"iot", Sam:"devops"};
   const MILESTONES = [
-    {id:1, title:"M1 · Discovery & Requirements", color:"#bc8cff", due:"2026-09-18", note:"Requirements sign-off"},
-    {id:2, title:"M2 · Design & Architecture", color:"#58a6ff", due:"2026-10-30", note:"Architecture review"},
-    {id:3, title:"M3 · MVP Build", color:"#f778ba", due:"2026-12-18", note:"MVP demo"},
-    {id:4, title:"M4 · Beta & Integrations", color:"#e3b341", due:"2027-02-12", note:"Closed beta complete"},
-    {id:5, title:"M5 · Launch & Handoff", color:"#3fb950", due:null, note:"Public launch (date TBD)"},
+    // [id, title, due offset (null = TBD), note]
+    [1,"M1 · Discovery",20,"Requirements sign-off"],
+    [2,"M2 · Design & Prototype",48,"Prototype review"],
+    [3,"M3 · MVP Build",97,"MVP demo"],
+    [4,"M4 · Pilot in 3 Gardens",133,"Pilot complete"],
+    [5,"M5 · Launch",null,"Public launch (date TBD)"],
   ];
-  const OBJECTIVES = [
-    [1,"Kickoff & Stakeholders",[1,2]],
-    [1,"Requirements",[3,4,5,7,8]],
-    [1,"Engineering Setup",[6]],
-    [2,"UX & Visual Design",[9,10,11,12]],
-    [2,"Backend Architecture",[13,14,15]],
-    [2,"Mobile Architecture",[16,17,18]],
-    [2,"Infrastructure & Security",[19,20,21]],
-    [2,"Architecture Review",[22,23]],
-    [3,"Core Backend Services",[24,25,26]],
-    [3,"Web Experience",[27,28,29]],
-    [3,"Mobile Experience",[30,31,32]],
-    [3,"Quality & Delivery Pipeline",[33,34,35]],
-    [3,"MVP Demo",[36,37]],
-    [4,"Integrations",[38,39,40]],
-    [4,"Organizer Tools & Accessibility",[41,42]],
-    [4,"Performance",[43]],
-    [4,"Beta Program",[44,45,46]],
-    [5,"Launch Readiness",[47,48,49,50,51]],
-    [5,"Go Live",[52,53]],
-    [5,"Handoff",[54]],
+  // [id, title (the prefix sets the type; none = untracked), assignee (null = whole team), start, end,
+  //  milestone (null = none), parent, story points (0 = not estimated), extra labels, blocked by]
+  const ISSUES = [
+    [1,"Task: Project kickoff & team charter",null,0,1,1,null,1,["docs"],[]],
+    [2,"Task: Interview garden coordinators",null,1,7,1,null,3,[],[1]],
+    [3,"User Story - As a coordinator I can see which plots are free","Avery",3,14,1,null,0,[],[]],
+    [4,"Task: Map the current paper sign-up process","Avery",3,9,1,3,3,["design"],[]],
+    [5,"Task: Compare soil sensor hardware","Mei",2,10,1,null,5,[],[]],
+    [6,"Task: Set up repo, CI and branch rules","Sam",1,6,1,null,3,[],[]],
+    [7,"Task: Write the requirements document","Diego",8,17,1,null,8,["docs"],[2,4,5]],
+    [8,"Requirements sign-off meeting",null,18,20,1,null,0,[],[7]],
+    [9,"Issue - Wi-Fi coverage unknown at two garden sites","Mei",6,13,1,null,2,[],[]],
+
+    [10,"User Story - As a gardener I can book a plot online","Avery",21,46,2,null,13,[],[]],
+    [11,"Task: Wireframes for plot booking","Avery",21,28,2,10,0,["design"],[]],
+    [12,"Task: Clickable booking prototype","Avery",29,41,2,10,0,["design"],[11]],
+    [13,"Sub-task: Usability test with 5 gardeners",null,42,46,2,12,0,["test"],[12]],
+    [14,"User Story - As a coordinator I get an alert when a bed is too dry","Mei",21,47,2,null,0,[],[]],
+    [15,"Task: Soil sensor breadboard prototype","Mei",21,33,2,14,8,[],[5]],
+    [16,"Task: LoRa vs Wi-Fi range test","Mei",30,38,2,14,5,["test"],[]],
+    [17,"Sub-task: Waterproof enclosure test","Mei",36,44,2,15,3,["test"],[]],
+    [18,"Task: Data model & ERD","Diego",21,29,2,null,5,["design"],[7]],
+    [19,"Task: REST API contract (OpenAPI)","Diego",28,40,2,null,8,["docs"],[18]],
+    [20,"Task: Staging environment","Sam",24,37,2,null,5,[],[6]],
+    [21,"Bug: CI cache breaks after dependency updates","Sam",33,35,2,null,1,[],[]],
+    [22,"Prototype review deck",null,43,48,2,null,3,["docs"],[13,17,19]],
+
+    [23,"User Story - As a gardener I can reserve and pay for a plot","Diego",49,90,3,null,0,[],[]],
+    [24,"Task: Auth & accounts service","Diego",49,60,3,23,8,["security"],[19]],
+    [25,"Task: Plots & reservations API","Diego",58,74,3,23,13,[],[24]],
+    [26,"Sub-task: Waitlist when a garden is full","Diego",72,80,3,25,5,[],[]],
+    [27,"Task: Payment checkout (test mode)","Diego",78,90,3,23,8,["security"],[25]],
+    [28,"User Story - As a gardener I can see my bed's soil moisture","Avery",52,94,3,null,0,[],[]],
+    [29,"Task: Web plot map","Avery",52,63,3,28,8,[],[12]],
+    [30,"Task: Moisture chart on the plot page","Avery",62,75,3,28,5,[],[29]],
+    [31,"Sub-task: Empty and offline states for the chart","Avery",74,79,3,30,2,["design"],[]],
+    [32,"Bug: Plot map tiles fail to load on Safari","Avery",66,68,3,29,2,[],[]],
+    [33,"Task: Sensor firmware v1","Mei",50,66,3,28,13,[],[15,16]],
+    [34,"Task: Sensor ingest endpoint","Diego",64,76,3,28,5,[],[33]],
+    [35,"Bug: Readings duplicated after a sensor reconnects","Mei",69,73,3,33,3,[],[]],
+    [36,"User Story - As a coordinator I can message every gardener","Avery",80,95,3,null,5,[],[]],
+    [37,"Task: Announcement composer","Avery",80,88,3,36,0,[],[]],
+    [38,"Task: Email delivery service","Sam",82,92,3,36,0,[],[]],
+    [39,"Task: Deploy pipeline to a production-like environment","Sam",49,61,3,null,5,[],[20]],
+    [40,"Task: Automated end-to-end test suite","Sam",58,72,3,null,8,["test"],[39]],
+    [41,"Issue - Sensor battery lasts 4 days instead of 30","Mei",67,82,3,null,5,[],[]],
+    [42,"Load test the reservations API","Sam",85,92,3,null,3,["test"],[25]],
+    [43,"MVP demo",null,95,97,3,null,2,[],[27,30,34,37]],
+    [44,"Bug: Reservation emails show the wrong time zone",null,66,70,3,null,0,[],[]],
+
+    [45,"User Story - As a coordinator I can export a season report","Diego",98,120,4,null,0,[],[]],
+    [46,"Task: Season report CSV export","Diego",98,108,4,45,5,[],[43]],
+    [47,"Task: Season report PDF layout","Avery",106,118,4,45,5,["design"],[46]],
+    [48,"Task: Install sensors at 3 pilot gardens","Mei",100,112,4,null,8,[],[43]],
+    [49,"Task: Pilot onboarding guide","Sam",98,106,4,null,3,["docs"],[]],
+    [50,"Pilot feedback survey",null,118,128,4,null,2,[],[48]],
+    [51,"Issue - Accessibility audit (WCAG 2.2 AA)","Avery",120,131,4,null,5,["test"],[]],
+
+    [52,"Task: App store listing","Avery",134,145,5,null,3,[],[51]],
+    [53,"Task: Production cutover plan","Sam",136,146,5,null,5,["docs"],[]],
+    [54,"Task: Coordinator handbook","Diego",140,150,5,null,0,["docs"],[]],
+    [55,"Public launch",null,155,157,5,null,2,[],[52,53]],
+    [56,"Retrospective & handoff",null,157,160,5,null,0,["docs"],[55]],
+
+    [57,"Update README screenshots","Sam",60,62,null,null,1,["docs"],[]],
+    [58,"Bug: Low contrast on the dark-mode login page","Avery",70,77,null,null,0,[],[]],
   ];
-  const AREA_OF = {Jera:"web", Marcus:"api", Priya:"mobile", Noah:"devops"};
-  const PEOPLE = ["Jera","Marcus","Priya","Noah"];
-  const COMMIT_MSGS = {
-    web:["Add event card component","Fix layout shift on discovery page","Wire up search filters","Add responsive nav menu","Update design tokens","Add form validation to checkout"],
-    api:["Add pagination to events endpoint","Add migration for bookings table","Validate venue capacity on booking","Refactor auth middleware","Add OpenAPI examples","Index events by start date"],
-    mobile:["Add pull-to-refresh on event list","Cache tickets for offline use","Fix deep link handling","Add push permission prompt","Update tab bar icons","Handle token refresh on resume"],
-    devops:["Add lint stage to pipeline","Configure staging secrets","Add uptime alerts","Speed up test job caching","Add preview deploys for MRs","Pin base image versions"],
-    docs:["Update architecture notes","Fix typos in requirements doc","Add meeting notes","Update risk log","Add decision record","Expand README setup steps"],
+  const STILL_OPEN = new Set([9,44]);     // past due and not closed: these show as overdue
+  const IN_REVIEW = new Set([26,34,41]);
+  const DESCRIPTIONS = {
+    3:"Coordinators currently track plots on a paper sheet at the shed. We need a live view of free and taken plots.",
+    10:"Gardeners should be able to pick a garden, see free plots on a map and book one for the season.",
+    14:"When a bed's soil moisture drops below the threshold for 6 hours, the coordinator gets an alert.",
+    19:"OpenAPI 3.1 contract for gardens, plots, reservations, sensors and readings, including error formats and pagination.",
+    23:"Reservation and payment flow for one season. Payments run in test mode until the pilot ends.",
+    28:"Each gardener sees the last 7 days of moisture for their bed, and whether the sensor is online.",
+    41:"Firmware wakes the radio too often. Target: 30 days on two AA batteries.\n\nBlocked by #35",
+    44:"Emails show UTC instead of the garden's local time.",
+    45:"Coordinators need a season report (plots used, waitlist, water alerts) for the city parks office.",
   };
-  const COMMENTS = ["Pushed a first pass, feedback welcome.","Blocked on API keys until Thursday.","Linked the design spec in the description.","Can we review this in the next stand-up?","Updated the estimate after today's planning.","Looks good to me, merging after one more read.","Split the remaining work into a follow-up.","Added screenshots from the staging build."];
+  const COMMIT_MSGS = {
+    web:["Add plot card component","Fix layout shift on the garden map","Wire up plot filters","Add responsive nav menu","Update color tokens","Validate the booking form"],
+    api:["Paginate the plots endpoint","Add migration for reservations","Check plot capacity on booking","Refactor auth middleware","Add OpenAPI examples","Index readings by sensor and time"],
+    iot:["Tune the moisture sampling interval","Debounce radio reconnects","Add calibration table","Lower sleep current","Buffer readings while offline","Update board pinout notes"],
+    devops:["Add lint stage to pipeline","Configure staging secrets","Add uptime alerts","Cache dependencies in CI","Add preview deploys","Pin base image versions"],
+    docs:["Update architecture notes","Fix typos in the requirements doc","Add meeting notes","Update the risk log","Add a decision record","Expand README setup steps"],
+  };
+  const COMMENTS = ["Pushed a first pass, feedback welcome.","Waiting on the sensor parts, they ship Thursday.","Linked the design file in the description.","Can we look at this in stand-up?","Updated the estimate after planning.","Looks good, merging after one more read.","Split the rest into a follow-up.","Added photos from the garden visit."];
 
   function rng(seed){ return function(){ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
   const pad=n=>String(n).padStart(2,"0");
-  const P=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d);};
-  const I=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
-  const add=(s,n)=>{const d=P(s);d.setDate(d.getDate()+n);return I(d);};
-  const span=(a,b)=>Math.round((P(b)-P(a))/864e5)+1;
-  const F=s=>P(s).toLocaleDateString("en-US",{month:"short",day:"numeric"});
-
-  function spFor(title,start,end){
-    const d=span(start,end);
-    let sp = d<=2?2 : d<=4?3 : d<=7?5 : d<=12?8 : 13;
-    if(/document|records|deck|runbooks|docs/i.test(title) && sp<13) sp = sp===8?13:sp===5?8:sp===3?5:3;
-    if(/kickoff|sign-off|demo|Public launch/i.test(title)) sp=Math.min(sp,3);
-    return sp;
-  }
-  function labelsFor(title,assignee){
-    const L=[]; if(AREA_OF[assignee]) L.push(AREA_OF[assignee]);
-    if(/wireframe|mockup|design|architecture|model/i.test(title)) L.push("design");
-    if(/document|records|deck|runbook|docs/i.test(title)) L.push("docs");
-    if(/test|audit|triage|monitoring/i.test(title)) L.push("test");
-    if(/security|auth|privacy/i.test(title)) L.push("security");
-    return L;
-  }
 
   function build(){
-    const R=rng(20260901);
-    const pick=a=>a[Math.floor(R()*a.length)];
-    const objectives=OBJECTIVES.map(([ms,title],i)=>({id:i+1, ms, title}));
-    const objOf={}; OBJECTIVES.forEach(([,,ids],i)=>ids.forEach(id=>objOf[id]=i+1));
+    const R=rng(20260301), pick=a=>a[Math.floor(R()*a.length)];
+    const today=iso(new Date());
+    let K=addD(today,-TODAY_OFFSET); { const d=pd(K); d.setDate(d.getDate()-(d.getDay()+6)%7); K=iso(d); }   // kickoff on a Monday
+    const T=diff(K,today);                      // today, as an offset from the kickoff
+    const day=o=>addD(K,o);
+    const at=(o,h,m)=>`${day(o)}T${pad(h)}:${pad(m)}:00`;
+    const ago=(o,h)=>at(Math.min(o,T),h??(9+Math.floor(R()*9)),Math.floor(R()*60));
+    const hm=()=>[9+Math.floor(R()*10),Math.floor(R()*60)];
 
-    const issues=TASKS.map(([id,title,assignee,start,end,ms,deps,tbd])=>{
-      let status="todo";
-      if(end<AS_OF) status="done";
-      else if(start<=AS_OF) status="progress";
-      else if(start<=add(AS_OF,14)) status="ready";
-      return {id, title, description:"", assignee, ms, obj:objOf[id], sp:spFor(title,start,end),
-        start, end, status, tbd, deps:deps.slice(), labels:labelsFor(title,assignee), closedAt:null};
+    const issues=ISSUES.map(([id,title,who,s,e,ms,parent,sp,extra,deps])=>{
+      const closed=e<T&&!STILL_OPEN.has(id);
+      let c=e; if(closed){ const j=R(); c=j<.2?e-1:j<.8?e:j<.92?e+1:e+2; c=Math.max(s,Math.min(c,T)); }
+      const status=closed?null:IN_REVIEW.has(id)&&s<=T?"status::in review":s<=T?"status::in progress":s<=T+14?"status::ready":null;
+      const msDue=ms?MILESTONES[ms-1][2]:null;
+      const desc=[DESCRIPTIONS[id]||"", deps.length&&!/Blocked by/.test(DESCRIPTIONS[id]||"")?`Blocked by ${deps.map(d=>"#"+d).join(", ")}`:""].filter(Boolean).join("\n\n");
+      const author=who||PEOPLE[id%4];
+      return {id, title, description:desc, assignee:who, author, closer:who||PEOPLE[(id+1)%4], msId:ms,
+        labels:[...(who?[AREA[who]]:[]),...extra,...(status?[status]:[])], closed,
+        createdAt:ago(Math.max(0,s-2-Math.floor(R()*3)),10), closedAt:closed?at(c,...hm()):null,
+        due:ms===5||!ms&&!closed?null:day(e), start:day(s), sp, parentIid:parent, type:null};
     });
-    const byId={}; issues.forEach(i=>byId[i.id]=i);
-    byId[15].status="review"; byId[18].status="review";
-    byId[14].description="OpenAPI 3.1 contract for events, venues, bookings and users, including error formats and pagination.";
-    byId[23].description="Summarize the architecture decision records, risks and open questions for the Oct 30 architecture review.";
-    issues.forEach(i=>{ if(i.status==="done"){ let c=i.end; if(R()<.3&&i.end>i.start) c=add(i.end,-1); i.closedAt=c; } });
-
-    // sprints: 2-week cadence from Sep 1 2026 through the end of March 2027
-    const sprints=[]; let s="2026-09-01", n=1;
-    const goals=["Kickoff & stakeholder interviews","Requirements & sign-off","Wireframes, data model & architecture","Design system, API contract & staging","Mockups, security & architecture review","Auth, app shells & pipelines","Core APIs & event discovery","Booking flows","MVP integration & demo"];
-    while(s<="2027-03-31"){ sprints.push({n, start:s, end:add(s,13), goal:goals[n-1]||""}); s=add(s,14); n++; }
-
-    // ---- activity log ----
-    const ev=[]; let eid=1;
-    const ts=(d,h,m)=>`${d}T${pad(h)}:${pad(m)}:00`;
-    const E=(t,actor,type,text,issue,meta)=>ev.push({id:eid++,ts:t,actor,type,text,issue:issue??null,meta:meta||null});
-    const who=i=>i.assignee==="Team"?pick(PEOPLE):i.assignee;
-
-    MILESTONES.forEach((m,k)=>E(ts("2026-09-01",9,2+k),PEOPLE[k%4],"milestone",`created milestone ${m.title}`));
-    E(ts("2026-09-01",9,12),"Noah","sprint",`planned ${sprints.length} two-week sprints starting Sep 1`);
-    issues.forEach(i=>{
-      const day = i.ms===1 ? "2026-09-01" : i.ms===2 ? "2026-09-02" : i.ms===3 ? "2026-09-21" : (i.ms===4?"2026-10-05":"2026-10-06");
-      const actor = i.assignee!=="Team" ? i.assignee : PEOPLE[i.id%4];
-      E(ts(day,10+Math.floor(i.id%8),(i.id*7)%60),actor,"issue_created",`opened issue #${i.id} ${i.title}`,i.id);
+    // merged merge requests for most closed work, and commits on every working day
+    const merges=[], commits=[];
+    issues.filter(i=>i.closed&&i.assignee&&R()<.7).forEach((i,k)=>{
+      merges.push({id:100+k, title:i.title.replace(/^\W*(?:user story|task|sub-task|bug|issue)\s*[-:]\s*/i,""), ts:i.closedAt.slice(0,11)+"15:"+pad(Math.floor(R()*50)), actor:pick(PEOPLE.filter(p=>p!==i.assignee))});
     });
-    // a few issues that were later deleted
-    [[55,"Duplicate: login page wireframe","Jera","2026-09-22","Marcus","2026-09-23","duplicate of #9"],
-     [56,"Spike: evaluate Firebase for the backend","Marcus","2026-09-24","Marcus","2026-10-01","team chose managed Postgres"],
-     [57,"Placeholder: design tool licenses","Noah","2026-09-03","Noah","2026-09-08","covered by the team plan"]]
-     .forEach(([id,title,a,d,b,d2,why])=>{
-       E(ts(d,14,11),a,"issue_created",`opened issue #${id} ${title}`,id);
-       E(ts(d2,16,40),b,"issue_deleted",`deleted issue #${id} ${title} (${why})`,id);
-     });
-    issues.forEach(i=>{
-      if(i.start>AS_OF) return;
-      E(ts(i.start,9+Math.floor(R()*3),Math.floor(R()*60)),who(i),"status",`moved #${i.id} ${i.title} to In Progress`,i.id);
-      const dur=span(i.start,i.end);
-      if((i.status==="done"&&dur>=4)||i.status==="review"){
-        const rd=i.status==="review"?(i.end<AS_OF?i.end:AS_OF):add(i.closedAt,-1)<i.start?i.start:add(i.closedAt,-1);
-        E(ts(rd,15,Math.floor(R()*60)),who(i),"status",`moved #${i.id} ${i.title} to In Review`,i.id);
-      }
-      if(i.status==="done"){
-        const closer=who(i);
-        E(ts(i.closedAt,16+Math.floor(R()*5),Math.floor(R()*60)),closer,"issue_closed",`closed issue #${i.id} ${i.title}`,i.id);
-        if(i.assignee!=="Team"&&R()<.65){
-          const rev=pick(PEOPLE.filter(p=>p!==i.assignee));
-          E(ts(i.closedAt,15,Math.floor(R()*50)),rev,"mr_merged",`merged !${100+i.id} "${i.title}" from ${i.assignee}`,i.id);
-        }
-      }
-    });
-    // deadline / sprint extensions and edits
-    E(ts("2026-09-28",14,10),"Marcus","deadline",`extended due date of #13 Data model & ERD from ${F("2026-09-28")} to ${F("2026-09-30")}`,13);
-    E(ts("2026-10-09",17,3),"Noah","sprint_ext",`extended Sprint 3 end from ${F("2026-10-11")} to ${F("2026-10-12")}`,null,{sprint:3});
-    E(ts("2026-10-12",11,42),"Priya","deadline",`extended due date of #17 Offline sync strategy from ${F("2026-10-12")} to ${F("2026-10-14")}`,17);
-    E(ts("2026-10-16",19,20),"Jera","deadline",`extended due date of #11 High-fidelity mockups from ${F("2026-10-17")} to ${F("2026-10-21")}`,11);
-    E(ts("2026-10-13",10,5),"Marcus","issue_updated",`changed weight of #14 REST API contract (OpenAPI) from 8 to 13`,14);
-    E(ts("2026-10-20",13,30),"Noah","milestone",`updated milestone M2 · Design & Architecture (architecture review booked for Oct 30)`);
-    E(ts("2026-10-05",9,15),"Jera","issue_updated",`reassigned #12 Usability test round 1 from Jera to Team`,12);
-
-    // daily commits and comments
-    for(let d="2026-09-01"; d<=AS_OF; d=add(d,1)){
-      const dow=P(d).getDay(), weekend=dow===0||dow===6;
+    for(let o=0;o<=T;o++){
+      const dow=pd(day(o)).getDay(), weekend=dow===0||dow===6;
       for(const p of PEOPLE){
-        const active=issues.filter(i=>i.start<=d&&i.end>=d&&(i.assignee===p||i.assignee==="Team"));
-        const lam = (active.length?2.4:0.5)*(weekend?0.35:1)*(p==="Marcus"?1.15:p==="Noah"?0.85:1);
-        const prob=lam/(1+lam); let k=0; while(R()<prob&&k<9) k++;
+        const active=ISSUES.filter(x=>x[3]<=o&&x[4]>=o&&(x[2]===p||!x[2])&&x[5]!==5);
+        const lam=(active.length?2.2:.4)*(weekend?.3:1)*(p==="Diego"?1.2:p==="Sam"?.85:1), prob=lam/(1+lam);
+        let k=0; while(R()<prob&&k<8) k++;
         for(let c=0;c<k;c++){
-          const iss=active.length?pick(active):null;
-          const area=iss&&iss.labels.includes("docs")?"docs":AREA_OF[p];
-          const msg=pick(COMMIT_MSGS[area])+(iss?` (#${iss.id})`:"");
-          const branch=iss?`${area}/${iss.id}-${iss.title.toLowerCase().replace(/[^a-z0-9]+/g,"-").slice(0,22).replace(/-$/,"")}`:"main";
-          const sha=Array.from({length:7},()=>"0123456789abcdef"[Math.floor(R()*16)]).join("");
-          E(ts(d,9+Math.floor(R()*14),Math.floor(R()*60)),p,"commit",msg,iss?iss.id:null,{sha,branch});
+          const x=active.length?pick(active):null, area=x&&x[8].includes("docs")?"docs":AREA[p];
+          commits.push({ts:at(o,...hm()), actor:p, msg:pick(COMMIT_MSGS[area])+(x?` (#${x[0]})`:""), sha:Array.from({length:7},()=>"0123456789abcdef"[Math.floor(R()*16)]).join("")});
         }
-        if(active.length&&!weekend&&R()<.22){ const iss=pick(active); E(ts(d,11+Math.floor(R()*8),Math.floor(R()*60)),p,"comment",`commented on #${iss.id} ${iss.title}: "${pick(COMMENTS)}"`,iss.id); }
       }
     }
-    ev.sort((a,b)=>a.ts<b.ts?1:a.ts>b.ts?-1:b.id-a.id);
-    return { asOf:AS_OF, source:"mock", milestones:MILESTONES.map(m=>({...m})), objectives, sprints, issues, events:ev, nextEventId:eid };
+    const S0=normalizeLive({title:"Sprout (demo)", sub:"Sample data · community garden platform", url:null, branch:"main", mrPrefix:"!",
+      milestones:MILESTONES.map(([id,title,due,note])=>({id, title, due:due==null?null:day(due), description:note})),
+      issues, merges, commits, sprintStart:K}, "mock");
+
+    // the activity a live project has but this demo can't read from an API: status moves, comments,
+    // deadline extensions, milestone edits and a few deleted issues
+    const ev=S0.events, E=(ts,actor,type,text,issue,meta)=>ev.push({ts, actor, type, text, issue:issue??null, meta:meta||null});
+    MILESTONES.forEach(([,title],k)=>E(at(0,9,2+k),PEOPLE[k%4],"milestone",`created milestone ${title}`));
+    S0.issues.forEach(i=>{
+      const o=diff(K,i.start); if(o>T) return;
+      const who=i.assignee==="Team"?pick(PEOPLE):i.assignee;
+      E(ago(o,9+Math.floor(R()*3)),who,"status",`moved #${i.id} ${i.title} to In Progress`,i.id);
+      if(i.status==="review"||(i.status==="done"&&diff(i.start,i.end)>=3)) E(ago(Math.max(o,diff(K,i.end)-1),15),who,"status",`moved #${i.id} ${i.title} to In Review`,i.id);
+    });
+    for(let o=0;o<=T;o++){
+      if(pd(day(o)).getDay()%6===0) continue;
+      for(const p of PEOPLE){ if(R()>.2) continue;
+        const act=S0.issues.filter(i=>i.start<=day(o)&&i.end>=day(o)&&(i.assignee===p||i.assignee==="Team")); if(!act.length) continue;
+        const i=pick(act); E(at(o,...hm()),p,"comment",`commented on #${i.id} ${i.title}: "${pick(COMMENTS)}"`,i.id); }
+    }
+    E(ago(28,14),"Diego","deadline",`extended due date of #18 Data model & ERD by 2 days`,18);
+    E(ago(64,11),"Mei","deadline",`extended due date of #33 Sensor firmware v1 by 3 days`,33);
+    E(ago(45,16),"Sam","milestone",`updated milestone M2 · Design & Prototype (review moved to the garden shed)`);
+    E(ago(55,10),"Avery","issue_updated",`changed the estimate of #29 Web plot map from 5 to 8`,29);
+    [[59,"Duplicate: plot booking wireframe","Avery",22,23,"duplicate of #11"],[60,"Spike: Bluetooth sensors","Mei",11,16,"team chose LoRa"]]
+      .forEach(([id,title,who,a,b,why])=>{ E(ago(a,13),who,"issue_created",`opened issue #${id} ${title}`,id); E(ago(b,16),who,"issue_deleted",`deleted issue #${id} ${title} (${why})`,id); });
+    ev.sort((a,b)=>a.ts<b.ts?1:a.ts>b.ts?-1:0); ev.forEach((e,k)=>e.id=ev.length-k); S0.nextEventId=ev.length+1;
+
+    S0.members=S0.members.filter(m=>ROLES[m.name]).map(m=>({name:m.name, role:ROLES[m.name]}));
+    return S0;
   }
   return { name:"mock", load: async () => build() };
 })();
 
 /* ---------- live sources: GitHub and GitLab ---------- */
 const PROVIDER_NAME = {github:"GitHub", gitlab:"GitLab"};
+const provName = c => PROVIDER_NAME[c&&c.provider] || "GitHub or GitLab";
 function apiBase(c){
   if(c.provider==="github") return c.host==="https://github.com" ? "https://api.github.com" : c.host+"/api/v3";
   return c.host+"/api/v4";
 }
+// GitHub answers "304 Not Modified" to a repeated request whose ETag still matches, and those answers
+// don't count against the hourly limit, so polling an unchanged repo is free. Kept in memory only.
+const etags = new Map();
 async function api(c,path,params){
   const url=new URL(apiBase(c)+path);
   Object.entries(params||{}).forEach(([k,v])=>url.searchParams.set(k,v));
-  const tok=await getToken(c), P=PROVIDER_NAME[c.provider];
-  const headers = c.provider==="github"
-    ? Object.assign({Accept:"application/vnd.github+json"}, tok?{Authorization:`Bearer ${tok}`}:{})
-    : (tok?{"PRIVATE-TOKEN":tok}:{});
+  const tok=await getToken(c), P=provName(c), gh=c.provider==="github";
+  const headers = gh ? Object.assign({Accept:"application/vnd.github+json"}, tok?{Authorization:`Bearer ${tok}`}:{}) : (tok?{"PRIVATE-TOKEN":tok}:{});
+  const ek=(tok?"t ":"")+url.href, cached=gh?etags.get(ek):null;
+  if(cached) headers["If-None-Match"]=cached.etag;
   let r;
-  try{ r=await fetch(url,{headers}); }
-  catch(e){ throw new Error(`Couldn't reach ${url.host}. Check the project link and your internet connection.`); }
-  if(r.ok) return r.json();
+  try{ r=await fetch(url,{headers,cache:"no-store"}); }
+  catch(e){ throw new Error(url.protocol==="http:"
+    ? `Couldn't reach ${url.host}. If this GitLab is on a private network (such as Tailscale), turn that on, check that ${url.origin} opens in this browser, then try again.`
+    : `Couldn't reach ${url.host}. Check the project link and your internet connection.`); }
+  if(r.status===304&&cached) return cached.data;
+  if(r.ok){ const d=await r.json(); const et=gh&&r.headers.get("etag"); if(et){ if(etags.size>2000) etags.clear(); etags.set(ek,{etag:et,data:d}); } return d; }
   if(!tok&&expiredNow.has(connKey(c))&&[401,403,404].includes(r.status)) throw new Error(`The token saved on this computer for this project has expired. Paste it again below, or create a new one if you didn't keep a copy.`);
-  if(r.status===401) throw new Error(`${P} rejected the token. It may be mistyped, expired or deleted. Make a new one using the steps below.`);
-  if(r.status===403&&r.headers.get("x-ratelimit-remaining")==="0") throw new Error(`${P} allows only 60 requests an hour without a token, and that limit is used up. Add a token below and try again.`);
-  if(r.status===403) throw new Error(tok ? `The token isn't allowed to read this project. Check it has the read permissions listed below${c.provider==="github"?" and access to this repository":""}.` : `${P} refused access. Add a token below.`);
-  if(r.status===404) throw new Error(tok ? `Project not found. Check the link, and that the token has access to this project.` : `Project not found. Check the link. If the project is private, you need to add a token below.`);
+  if(r.status===401&&!tok) throw new Error(`${P} needs a token to read this project. Add one below.`);
+  if(r.status===401) throw new Error(`${P} rejected the token. It may be mistyped, expired or revoked. Make a new one using the steps below.`);
+  if((r.status===403||r.status===429)&&r.headers.get("x-ratelimit-remaining")==="0") throw new Error(tok
+    ? `${P}'s hourly request limit for this token is used up. Try again in a while.`
+    : `${P} allows only 60 requests an hour without a token, and that limit is used up. Add a token below and try again.`);
+  if(r.status===403) throw new Error(tok ? `The token isn't allowed to read this project. Check it has the read permissions listed below${gh?" and access to this repository":", and that your account is a member of the project"}.` : `${P} refused access. Add a token below.`);
+  if(r.status===404) throw new Error(tok ? `${P} can't find ${c.project}. Check the link, and that the token${gh?"":"'s account"} has access to this project.` : `${P} can't find ${c.project}. Check the link. If the project is private, you need to add a token below.`);
   throw new Error(`${P} returned an error (${r.status}). Try again in a minute.`);
 }
 async function apiAll(c,path,params,maxPages=5){
@@ -750,6 +731,8 @@ async function gitHubProjectFields(c){
 const GitHubSource = { async load(c){
   const r=`/repos/${c.project}`;
   const repo=await api(c,r);
+  const tok=await getToken(c), warn=[];
+  if(!tok) warn.push("No token: GitHub allows 60 requests an hour, so Recent activity only refreshes when you ask");
   const [ms,all,commits,proj]=await Promise.all([
     apiAll(c,r+"/milestones",{state:"all"}),
     apiAll(c,r+"/issues",{state:"all"}),
@@ -761,37 +744,57 @@ const GitHubSource = { async load(c){
   await Promise.all(all.filter(i=>!i.pull_request&&i.sub_issues_summary?.total>0).slice(0,60).map(i=>
     apiAll(c,`${r}/issues/${i.number}/sub_issues`,{},1).then(l=>{ subs[i.number]=l.map(x=>x.number); }).catch(()=>{})));
   return {
-    title:repo.full_name, sub:repo.description||"GitHub repository", url:repo.html_url, branch:repo.default_branch, mrPrefix:"#",
+    title:repo.full_name, sub:repo.description||"GitHub repository", url:repo.html_url, branch:repo.default_branch, mrPrefix:"#", warn:warn.join(" · ")||null,
     milestones:ms.map(m=>({id:m.number, title:m.title, due:m.due_on?m.due_on.slice(0,10):null, description:m.description})),
     issues:all.filter(i=>!i.pull_request).map(i=>({id:i.number, title:i.title, description:i.body||"", assignee:i.assignee?.login, author:i.user?.login,
       msId:i.milestone?.number, labels:i.labels.map(l=>typeof l==="string"?l:l.name), closed:i.state==="closed", createdAt:i.created_at, closedAt:i.closed_at,
       type:i.type?.name||null, subs:subs[i.number]||[], sp:proj[i.number]?.sp||0, boardStatus:proj[i.number]?.status||null})),
+    sprintStart:c.sprintStart||null,
     merges:all.filter(i=>i.pull_request?.merged_at).map(p=>({id:p.number, title:p.title, ts:p.pull_request.merged_at, actor:p.assignee?.login||p.user?.login})),
     commits:commits.map(x=>({ts:x.commit.author.date, actor:x.author?.login||x.commit.author.name, msg:x.commit.message.split("\n")[0], sha:x.sha.slice(0,7)})),
   };
 }};
 
+/* GitLab: Task → User Story links live in the work-item hierarchy, which only the GraphQL API returns. */
+async function gitLabParents(c){
+  const tok=await getToken(c), out={};
+  const q=`query($p:ID!,$a:String){project(fullPath:$p){workItems(first:100,after:$a){pageInfo{hasNextPage endCursor}
+    nodes{iid widgets{... on WorkItemWidgetHierarchy{parent{iid}}}}}}}`;
+  let after=null;
+  for(let page=0;page<10;page++){
+    const r=await fetch(c.host+"/api/graphql",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},tok?{Authorization:`Bearer ${tok}`}:{}),
+      body:JSON.stringify({query:q,variables:{p:c.project,a:after}})});
+    const d=r.ok?await r.json():null, wi=d?.data?.project?.workItems;
+    if(!wi) throw new Error(d?.errors?.[0]?.message||`GraphQL ${r.status}`);
+    for(const n of wi.nodes){ const par=(n.widgets||[]).find(w=>w&&w.parent)?.parent; if(par) out[+n.iid]=+par.iid; }
+    if(!wi.pageInfo.hasNextPage) break; after=wi.pageInfo.endCursor;
+  }
+  return out;
+}
 const GitLabSource = { async load(c){
   const p=`/projects/${encodeURIComponent(c.project)}`;
   const proj=await api(c,p);
-  const [ms,all,commits,mrs,members,iters]=await Promise.all([
-    apiAll(c,p+"/milestones",{}),
+  const tok=await getToken(c), warn=[];
+  const [ms,all,commits,mrs,members,iters,parents]=await Promise.all([
+    apiAll(c,p+"/milestones",{}).catch(e=>{ if(tok) throw e; warn.push("Milestones need a token (read_api): ••• → Connect a project… → Edit"); return []; }),
     apiAll(c,p+"/issues",{scope:"all"}),
     apiAll(c,p+"/repository/commits",{since:yearAgo()},3).catch(()=>[]),
     apiAll(c,p+"/merge_requests",{state:"merged"},2).catch(()=>[]),
     apiAll(c,p+"/members/all",{},2).catch(()=>[]),
     apiAll(c,p+"/iterations",{},1).catch(()=>[]),      // GitLab Premium only
+    gitLabParents(c).catch(()=>{ warn.push("Task → story links not loaded"); return {}; }),
   ]);
   // commits carry the author's display name; map it to their username so it matches assignees
   const userOf={}; members.forEach(m=>{ userOf[(m.name||"").toLowerCase()]=m.username; });
   return {
-    title:proj.name_with_namespace, sub:proj.description||"GitLab project", url:proj.web_url, branch:proj.default_branch, mrPrefix:"!",
+    title:proj.name_with_namespace, sub:proj.description||"GitLab project", url:`${c.host}/${proj.path_with_namespace||c.project}`, branch:proj.default_branch, mrPrefix:"!", warn:warn.join(" · ")||null,
     milestones:ms.map(m=>({id:m.id, title:m.title, due:m.due_date||null, description:m.description})),
-    issues:all.map(i=>({id:i.iid, title:i.title, description:i.description||"", assignee:(i.assignees&&i.assignees[0]||i.assignee)?.username, author:i.author?.username,
+    issues:all.map(i=>({id:i.iid, parentIid:parents[i.iid]||null, title:i.title, description:i.description||"", assignee:(i.assignees&&i.assignees[0]||i.assignee)?.username, author:i.author?.username,
       closer:i.closed_by?.username, msId:i.milestone?.id, labels:i.labels||[], closed:i.state==="closed", createdAt:i.created_at, closedAt:i.closed_at,
       due:i.due_date||null, sp:i.weight||0, objTitle:i.epic?.title||null, start:i.iteration?.start_date||null,
       type:i.issue_type&&i.issue_type!=="issue"?i.issue_type:null})),     // every plain GitLab issue says "issue", so only the special types tell us anything
     sprints:iters.map(it=>({start:it.start_date, end:it.due_date, goal:it.title||""})),
+    sprintStart:c.sprintStart||null,
     merges:mrs.map(m=>({id:m.iid, title:m.title, ts:m.merged_at, actor:m.merged_by?.username||m.author?.username})),
     commits:commits.map(x=>({ts:x.created_at, actor:userOf[(x.author_name||"").toLowerCase()]||x.author_name, msg:x.title, sha:x.short_id})),
   };
@@ -800,16 +803,16 @@ const GitLabSource = { async load(c){
 /* Turn a provider's raw lists into the dashboard's shapes.
    Item type (user story / issue / task / sub-task): the provider's issue type, else a title
    prefix like "User Story - …" or "Task: …", else a label such as "story" or "task".
-   Parent links: GitHub sub-issues, "Parent: #7" / "Part of #7" in the description, or a
-   task list "- [ ] #12" in the parent's description.
+   Parent links: GitHub sub-issues or GitLab's work-item hierarchy (Task → User Story), "Parent: #7" /
+   "Part of #7" in the description, or a task list "- [ ] #12" in the parent's description.
    Story points: GitLab weight or a GitHub Project field ("Estimate", "Story Points"), else a label
-   "sp: 5" / "5 SP", else "Story points: 5" / "Estimate: 5" in the description. Nothing found = not estimated.
+   "points::5" / "sp: 5" / "5 SP", else "Story points: 5" / "Estimate: 5" in the description. Nothing found = not estimated.
    Hierarchy: milestone → user stories → tasks / issues → sub-tasks / sub-issues / bugs. A plain issue
    labelled "bug" counts as a bug. An item with no type at all is "untracked" and listed last.
    Objective: an "objective::Name" label or GitLab epic, else "User Stories" (each story with its tree under it);
    in a milestone that has stories, other top-level items go to "Not linked to a story", otherwise they are
    grouped by type. Sub-items sit in their parent's objective so they can be shown under it.
-   Labels "in progress" / "review" / "ready" (or the GitHub Project's Status column) → status,
+   Labels such as "status::in_progress" / "in review" / "ready" (or the GitHub Project's Status column) → status,
    and "blocked by #12" / "depends on #12" in the description → blockers. */
 const MS_COLORS = ["#bc8cff","#58a6ff","#f778ba","#e3b341","#3fb950","#ff9b6b","#56d4dd","#db61a2"];
 const SP_RE = /^(?:sp|story ?points?|points?|pts|weight|estimate)\s*[:=]{0,2}\s*(\d+)$|^(\d+)\s*(?:sp|pts?|points?)$/i;
@@ -830,8 +833,8 @@ function statusOf(labels,closed){
   if(closed) return "done";
   const s=labels.join(" | ").toLowerCase();
   if(/review/.test(s)) return "review";
-  if(/in[ -]?progress|doing|\bwip\b/.test(s)) return "progress";
-  if(/\bready\b|to[ -]?do/.test(s)) return "ready";
+  if(/in[ _-]?progress|doing|\bwip\b/.test(s)) return "progress";
+  if(/\bready\b|to[ _-]?do/.test(s)) return "ready";
   return "todo";
 }
 function normalizeLive(raw,provider){
@@ -846,7 +849,8 @@ function normalizeLive(raw,provider){
   // parent links; the first one found for a child wins, and loops are dropped
   const parentOf={};
   const link=(child,parent)=>{ if(child!==parent&&ids.has(child)&&ids.has(parent)&&!parentOf[child]) parentOf[child]=parent; };
-  raw.issues.forEach(r=>(r.subs||[]).forEach(k=>link(k,r.id)));
+  raw.issues.forEach(r=>{ if(r.parentIid) link(r.id,r.parentIid); });            // GitLab work-item hierarchy
+  raw.issues.forEach(r=>(r.subs||[]).forEach(k=>link(k,r.id)));                   // GitHub sub-issues
   raw.issues.forEach(r=>{ const m=r.description.match(PARENT_RE); if(m) link(r.id,+m[1]); });
   raw.issues.forEach(r=>{ for(const m of r.description.matchAll(TASKLIST_RE)) link(+m[1],r.id); });
   for(const id of Object.keys(parentOf)){ const seen=new Set([+id]); for(let p=parentOf[id];p;p=parentOf[p]){ if(seen.has(p)){ delete parentOf[id]; break; } seen.add(p); } }
@@ -895,12 +899,14 @@ function normalizeLive(raw,provider){
   raw.commits.forEach(x=>{ const ref=(x.msg.match(/#(\d+)/)||[])[1]; E(x.ts,x.actor,"commit",x.msg,ref&&ids.has(+ref)?+ref:null,{sha:x.sha, branch:raw.branch||"main"}); });
   ev.sort((a,b)=>a.ts<b.ts?1:a.ts>b.ts?-1:0); ev.forEach((e,k)=>e.id=ev.length-k);
 
-  // sprints: GitLab iterations when the project has them, otherwise a 2-week calendar around the work
-  let sprints=(raw.sprints||[]).filter(s=>s.start&&s.end).sort((a,b)=>a.start<b.start?-1:1).map((s,k)=>({n:k+1, start:s.start, end:s.end, goal:s.goal}));
+  // sprints: the project's own "Sprint 1 starts on" date wins; otherwise GitLab iterations when the
+  // project has them, otherwise a 2-week calendar around the work
+  let sprints=raw.sprintStart?[]:(raw.sprints||[]).filter(s=>s.start&&s.end).sort((a,b)=>a.start<b.start?-1:1).map((s,k)=>({n:k+1, start:s.start, end:s.end, goal:s.goal}));
   if(!sprints.length){
     let lo=[addD(t,-28),...issues.map(i=>i.start)].sort()[0]; if(lo<addD(t,-365)) lo=addD(t,-365);
     let hi=[addD(t,28),...issues.map(i=>i.end),...milestones.map(m=>m.due).filter(Boolean)].sort().pop(); if(hi>addD(t,730)) hi=addD(t,730);
-    const d=pd(lo); d.setDate(d.getDate()-(d.getDay()+6)%7); lo=iso(d);    // start on a Monday
+    if(raw.sprintStart) lo=raw.sprintStart;                                // a fixed team calendar wins
+    else { const d=pd(lo); d.setDate(d.getDate()-(d.getDay()+6)%7); lo=iso(d); }    // start on a Monday
     for(let s=lo,n=1;s<=hi;s=addD(s,14),n++) sprints.push({n, start:s, end:addD(s,13), goal:""});
   }
   const T0=sprints[0].start;
@@ -914,8 +920,9 @@ function normalizeLive(raw,provider){
     role:[assigned[name]?`${assigned[name]} issue${assigned[name]>1?"s":""}`:"",commits[name]?`${commits[name]} commit${commits[name]>1?"s":""}`:""].filter(Boolean).join(" · ")||"Contributor"}));
 
   return { asOf:t, source:provider, format:LIVE_FORMAT, project:{name:raw.title, sub:raw.sub, url:raw.url}, members,
-    milestones, objectives, sprints, issues, events:ev, nextEventId:ev.length+1 };
+    milestones, objectives, sprints, issues, events:ev, nextEventId:ev.length+1, notice:raw.warn||null };
 }
+// c = null: the Sprout demo project
 async function fetchProject(c){
   if(!c) return MockSource.load();
   return normalizeLive(await (c.provider==="github"?GitHubSource:GitLabSource).load(c), c.provider);
@@ -924,23 +931,14 @@ async function fetchProject(c){
 /* =====================================================================
    CONFIG
    ===================================================================== */
-// demo members use the theme-aware --c-<name> tokens; live projects get colors from MEMBER_PALETTE
-const DEMO_MEMBERS = [
-  {name:"Jera",  role:"Frontend · Web App", css:true},
-  {name:"Marcus",role:"Backend · API & Data", css:true},
-  {name:"Priya", role:"Mobile · iOS & Android", css:true},
-  {name:"Noah",  role:"DevOps · CI/CD & QA", css:true},
-];
+// members get colors from MEMBER_PALETTE in the order their activity ranks them
 const MEMBER_PALETTE = [["#3987e5","#ffffff"],["#d95926","#ffffff"],["#199e70","#03140d"],["#c98500","#1a1200"],["#8957e5","#ffffff"],["#d6417f","#ffffff"],["#2b9fae","#03140d"],["#9a7b4f","#ffffff"]];
 let MEMBERS = {}, PEOPLE = [], ASSIGNEES = [];
 function applyMembers(){
-  const list=S.members||DEMO_MEMBERS;
+  const list=S.members||[];
   MEMBERS={Team:{role:"Whole team / unassigned", css:true}};
   list.forEach((m,k)=>{ const [color,text]=MEMBER_PALETTE[k%MEMBER_PALETTE.length]; MEMBERS[m.name]={role:m.role, css:!!m.css, color, text}; });
   PEOPLE=list.map(m=>m.name); ASSIGNEES=[...PEOPLE,"Team"];
-  $("viewer").innerHTML=(PEOPLE.length?PEOPLE:["Team"]).map(p=>`<option>${esc(p)}</option>`).join("");
-  if(!PEOPLE.includes(ui.viewer)) ui.viewer=PEOPLE[0]||"Team";
-  $("viewer").value=ui.viewer;
 }
 const STATUSES = [["todo","Backlog","#768390"],["ready","Ready","#58a6ff"],["progress","In Progress","#d29922"],["review","In Review","#bc8cff"],["done","Done","#3fb950"]];
 const ST = Object.fromEntries(STATUSES.map(([k,l,c])=>[k,{label:l,color:c}]));
@@ -949,8 +947,10 @@ const SP_SCALE = [1,2,3,5,8,13,21];
 // in hierarchy order: milestone → stories → tasks / issues → sub-tasks / sub-issues / bugs → untracked
 const KINDS = [["story","User Story","User Stories","#3fb950"],["task","Task","Tasks","#58a6ff"],["issue","Issue","Issues","#d29922"],["subtask","Sub-task","Sub-tasks","#bc8cff"],["bug","Bug","Bugs","#f85149"],["untracked","Untracked","Untracked","#768390"]];
 const KIND = Object.fromEntries(KINDS.map(([k,label,group,color])=>[k,{label,group,color}]));
-const LIVE_FORMAT = 5;   // bump when normalizeLive changes shape, so older saved copies can be flagged
-const LABEL_COLORS = {web:"#3987e5",api:"#d95926",mobile:"#199e70",devops:"#c98500",design:"#8957e5",docs:"#6e7781",test:"#2da44e",security:"#da3633"};
+const LIVE_FORMAT = 6;   // bump when normalizeLive changes shape (recorded in "Download data" exports)
+// colors for well-known labels (the demo's areas); any other label is grey
+const LABEL_COLORS = {web:"#3987e5",api:"#d95926",iot:"#199e70",devops:"#c98500",design:"#8957e5",docs:"#6e7781",test:"#2da44e",security:"#da3633"};
+// the same storage keys earlier builds used, so saved projects and tokens carry over
 const LS_KEY = "pm_dashboard_v3", LS_UI = "pm_dashboard_ui_v3";
 const DAY = 864e5;
 const ICONS = {
@@ -987,21 +987,30 @@ const EV_TYPES = {
 /* =====================================================================
    STATE
    ===================================================================== */
-let S = null;            // {asOf, milestones, objectives, sprints, issues, events, nextEventId}
-let dirty = false;
-const ui = Object.assign({ view:"overview", theme:null, viewer:"Jera", collapsed:["ms-1","ms-4","ms-5"], zoom:8, nodates:false,
+let S = null;            // {asOf, milestones, objectives, sprints, issues, events}: read from GitHub/GitLab (or the demo), never edited here
+let CONN = null;         // the open project's connection; null = the demo
+const ui = Object.assign({ view:"overview", theme:null, collapsed:[], zoom:8, nodates:false, level:null,
   hidden:[], q:"", feedMember:"all", feedType:"all", feedQ:"", hmMember:"all", hmMetric:"all", hmDay:null, burn:"sprint",
-  boardMs:"all", boardWho:"all" }, readJSON(LS_UI) || {});
+  boardMs:"all", boardWho:"all", boardW:{}, rcFilter:"all", rcWho:"all", rcWin:"24h" }, readJSON(LS_UI) || {});
+delete ui.viewer;        // from builds that recorded local edits under a member's name
+// Gantt outline levels, in toolbar order: [key, button label, tooltip] (see setLevel)
+const LEVELS=[
+  ["collapse","Milestones","Show milestones only"],
+  ["summary","Objectives","Show milestones and their objectives, hide individual items"],
+  ["story","User Stories","Show milestones, objectives and user stories, with each story's tasks folded"],
+  ["linked","Stories + Tasks","Show only user stories that have linked tasks, with those tasks. Items not linked to a story are hidden"],
+  ["expand","Everything","Show milestones, objectives and every item"]];
 function readJSON(k){ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):null; }catch(e){ return null; } }
 function saveUI(){ try{ localStorage.setItem(LS_UI, JSON.stringify(ui)); }catch(e){} }
-/* ---------- CONNECTIONS: recent projects, kept in this browser ---------- */
+/* ---------- CONNECTIONS: the projects this browser knows, and which one is open ----------
+   Each connection is {provider, host, project, name, sprintStart?}. Its token lives in the vault below.
+   active = null means the demo project. */
 const LS_CONN = "pm_dashboard_conn_v1";
 const conns = Object.assign({active:null, recent:[]}, readJSON(LS_CONN) || {});
 function saveConns(){ try{ localStorage.setItem(LS_CONN, JSON.stringify(conns)); }catch(e){} }
 const connKey = c => `${c.provider}:${c.host}/${c.project}`.toLowerCase();
 const activeConn = () => conns.recent.find(c=>connKey(c)===conns.active) || null;
-const dataKeyFor = c => c ? `${LS_KEY}@${connKey(c)}` : LS_KEY;     // each project keeps its own saved copy
-const dataKey = () => dataKeyFor(activeConn());
+function rememberConn(c){ conns.recent=[c,...conns.recent.filter(x=>connKey(x)!==connKey(c))].slice(0,8); }
 /* ---------- TOKEN VAULT ----------
    Tokens are never stored in plain text. Each one is encrypted with AES-GCM using a key
    generated in this browser and kept in IndexedDB as non-extractable: the page can use it,
@@ -1062,7 +1071,6 @@ function forgetToken(c){
   const id=connKey(c); delete memTokens[id];
   for(const w of ["local","tab"]){ const v=readVault(w); if(v[id]){ delete v[id]; writeVault(w,v); } }
 }
-// wipes every token and destroys the key, so any copy of the encrypted data is useless
 async function forgetAllTokens(){
   Object.keys(memTokens).forEach(k=>delete memTokens[k]);
   writeVault("local",{}); writeVault("tab",{});
@@ -1074,21 +1082,14 @@ function purgeExpiredTokens(){
   for(const id in v) if(!(v[id].exp>now)){ delete v[id]; expiredNow.add(id); changed=true; }
   if(changed) writeVault("local",v);
 }
-function rememberConn(c){ conns.recent=[c,...conns.recent.filter(x=>connKey(x)!==connKey(c))].slice(0,6); }
 
-function persist(){
-  S.savedAt=new Date().toISOString();
-  try{ localStorage.setItem(dataKey(), JSON.stringify(S)); dirty=false; status(`Saved ${new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}`); toast("✓ Saved to this browser"); }
-  catch(e){ toast("⚠ Could not save: browser storage is blocked"); }
-}
-function markDirty(){ dirty=true; status(); }
 function status(msg){
-  const el=document.getElementById("statusLine");
-  el.innerHTML = dirty ? `<span class="dirty">● Unsaved changes</span>` : `<span class="ok">✓</span> ${esc(msg||lastStatus)}`;
   if(msg) lastStatus=msg;
-  document.getElementById("btnSave").classList.toggle("attn", dirty);
+  const notes=lastNotice?lastNotice.split(" · "):[];
+  document.getElementById("statusLine").innerHTML=`<span class="ok">✓</span> ${esc(lastStatus)}${notes.length
+    ?` <span class="note" data-tip="${esc(notes.map(esc).join("<br>"))}">⚠ ${notes.length===1?"1 note":notes.length+" notes"}</span>`:""}`;
 }
-let lastStatus = "Mock data";
+let lastStatus = "Not connected", lastNotice = null;   // lastNotice: warnings from the last load, " · " separated
 
 /* =====================================================================
    HELPERS
@@ -1111,7 +1112,6 @@ const labelHTML = l => { const c=LABEL_COLORS[l]||"#6e7781"; return `<span class
 const byId = id => S.issues.find(i=>i.id===id);
 const msById = id => S.milestones.find(m=>m.id===id);
 const objById = id => S.objectives.find(o=>o.id===id);
-const nowISO = () => { const d=new Date(); return iso(d)+"T"+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+":"+String(d.getSeconds()).padStart(2,"0"); };
 // "today" for the timeline: the real date, unless it falls outside the project window
 function today(){ const t=iso(new Date()); return (t>=S.sprints[0].start && t<=S.sprints[S.sprints.length-1].end) ? t : S.asOf; }
 function sprintAt(d){ return S.sprints.find(s=>d>=s.start&&d<=s.end) || null; }
@@ -1128,6 +1128,13 @@ function ancestors(i){ const out=[]; for(let p=byId(i.parent); p&&out.length<20&
 const spCounts = i => !!i.sp && !ancestors(i).some(p=>p.sp);
 const spOf = i => spCounts(i) ? i.sp : 0;
 const spSum = list => list.reduce((a,i)=>a+spOf(i),0);
+// % complete for a set of items: by story points only when every item is covered by an estimate;
+// otherwise by issues closed across all items (tracked or untracked), so everything done is always 100%
+function progress(list){
+  const done=list.filter(i=>i.status==="done"), sp=spSum(list);
+  return sp&&!unestimated(list).length ? {pct:Math.round(spSum(done)/sp*100), by:"story points"}
+    : {pct:list.length?Math.round(done.length/list.length*100):0, by:sp?"issues closed (some items not estimated)":"issues closed (nothing estimated)"};
+}
 function spRoll(i,seen=new Set()){ if(i.sp||seen.has(i.id)) return i.sp||0; seen.add(i.id); return kidsOf(i.id).reduce((a,k)=>a+spRoll(k,seen),0); }
 // items with no estimate of their own, none above them, and no sub-items carrying one
 const unestimated = list => list.filter(i=>!i.sp && !spRoll(i) && !ancestors(i).some(p=>p.sp));
@@ -1154,15 +1161,11 @@ function kidsBadge(i){
   const done=all.filter(k=>k.status==="done").length;
   return `<span class="cnt-badge" data-tip="${done} of ${all.length} sub-items done">${done}/${all.length}</span>`;
 }
-function logEvent(type,text,issue,meta){
-  const e={id:S.nextEventId++, ts:nowISO(), actor:ui.viewer, type, text, issue:issue??null, meta:meta||null, user:true};
-  S.events.unshift(e); markDirty(); return e;
-}
 function toast(msg){ const t=document.getElementById("toast"); t.innerHTML=msg; t.classList.add("on"); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("on"),2200); }
 
 /* tooltip: any element with data-tip */
 const tip=document.getElementById("tip");
-document.addEventListener("mouseover",e=>{ const el=e.target.closest("[data-tip]"); if(!el||dragState){ tip.classList.remove("on"); return; } tip.innerHTML=el.dataset.tip; tip.classList.add("on"); });
+document.addEventListener("mouseover",e=>{ const el=e.target.closest("[data-tip]"); if(!el||document.querySelector(".resizing")){ tip.classList.remove("on"); return; } tip.innerHTML=el.dataset.tip; tip.classList.add("on"); });
 document.addEventListener("mousemove",e=>{ if(!tip.classList.contains("on")) return; const w=tip.offsetWidth,h=tip.offsetHeight; let x=e.clientX+14,y=e.clientY+14; if(x+w>innerWidth-8)x=e.clientX-w-14; if(y+h>innerHeight-8)y=e.clientY-h-14; tip.style.left=x+"px"; tip.style.top=y+"px"; });
 document.addEventListener("mouseout",e=>{ if(e.target.closest("[data-tip]")&&!e.relatedTarget?.closest?.("[data-tip]")) tip.classList.remove("on"); });
 
@@ -1170,7 +1173,7 @@ document.addEventListener("mouseout",e=>{ if(e.target.closest("[data-tip]")&&!e.
    RENDER ROOT
    ===================================================================== */
 const view=document.getElementById("view");
-const BRAND_DEMO = document.getElementById("brand").innerHTML, TITLE_DEMO = document.title;
+const BRAND_DEFAULT = document.getElementById("brand").innerHTML, TITLE_DEFAULT = document.title;
 function render(){
   document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.view===ui.view));
   renderBrand();
@@ -1179,8 +1182,8 @@ function render(){
 }
 function renderBrand(){
   const p=S.project;
-  document.getElementById("brand").innerHTML = p ? `<span class="dot"></span>${esc(p.name)} <small>${esc(p.sub)}</small>` : BRAND_DEMO;
-  document.title = p ? `${p.name} · Project Dashboard` : TITLE_DEMO;
+  document.getElementById("brand").innerHTML = p ? `<span class="dot"></span>${esc(p.name)} <small title="${esc(p.sub)}">${esc(p.sub)}</small>` : BRAND_DEFAULT;
+  document.title = p ? `${p.name} · Project Dashboard` : TITLE_DEFAULT;
 }
 function renderLegend(){
   let h="";
@@ -1210,7 +1213,7 @@ function renderOverview(){
   const pct=(a,b)=>b?Math.round(a/b*100):0;
   let h=`<div class="kpis">
     <div class="kpi"><div class="k">Current sprint</div><div class="v">${s.sp?`Sprint ${s.sp.n}`:"—"}</div><div class="s">${s.sp?`${fmt(s.sp.start)} – ${fmt(s.sp.end)} · ${diff(s.t,s.sp.end)} days left`:"Outside the project window"}</div>
-      <div class="meter"><i style="width:${pct(s.sprintDone,s.sprintSp)}%;background:var(--accent)"></i></div></div>
+      <div class="meter"><i style="width:${progress(s.sprintIssues).pct}%;background:var(--accent)"></i></div></div>
     <div class="kpi"><div class="k">Issues closed</div><div class="v">${s.done.length} <span style="color:var(--faint);font-size:14px">/ ${s.all.length}</span></div><div class="s">${pct(s.done.length,s.all.length)}% of all issues</div><div class="meter"><i style="width:${pct(s.done.length,s.all.length)}%"></i></div></div>
     <div class="kpi"><div class="k">Story points done</div><div class="v">${s.spDone} <span style="color:var(--faint);font-size:14px">/ ${s.spTot}</span></div><div class="s"${s.noEst.length?` data-tip="${esc(s.noEst.map(i=>`#${i.id} ${i.title}`).slice(0,25).join("<br>"))}"`:""}>${pct(s.spDone,s.spTot)}% of planned points${s.noEst.length?` · <span style="color:var(--warn)">${s.noEst.length} not estimated</span>`:""}</div><div class="meter"><i style="width:${pct(s.spDone,s.spTot)}%"></i></div></div>
     <div class="kpi"><div class="k">Next milestone</div><div class="v" style="font-size:16px;padding-top:3px">${s.next?esc(s.next.note||s.next.title):"—"}</div><div class="s">${s.next?`${fmt(s.next.due)} · in ${diff(s.t,s.next.due)} days`:""}</div></div>
@@ -1221,14 +1224,9 @@ function renderOverview(){
     <input class="inp" id="gq" type="search" placeholder="Filter issues…" value="${esc(ui.q)}" style="width:190px">
     <div class="chips" id="gwho">${ASSIGNEES.map(p=>`<span class="chip${ui.hidden.includes(p)?" off":""}" data-who="${p}" title="Show/hide ${p}">${avatar(p)}${p}</span>`).join("")}</div>
     <div class="spacer"></div>
-    <div class="seg" id="gLevel" title="Outline level">
-      <button data-lv="collapse" title="Show milestones only">Collapse all</button>
-      <button data-lv="summary" title="Show milestones and objectives, hide individual issues">Summary view</button>
-      <button data-lv="expand" title="Show milestones, objectives and every issue">Expand all</button>
-    </div>
+    <div class="seg" id="gLevel" title="Outline level">${LEVELS.map(([lv,label,tip])=>`<button data-lv="${lv}" class="${ui.level===lv?"active":""}" title="${tip}">${label}</button>`).join("")}</div>
     <button class="btn sm${ui.nodates?" on":""}" id="gDates" title="Show or hide the start/due columns">Dates</button>
     <div class="seg" id="gZoom" title="Timeline zoom">${[[4,"Month"],[8,"Sprint"],[16,"Week"]].map(([z,l])=>`<button data-z="${z}" class="${ui.zoom===z?"active":""}">${l}</button>`).join("")}</div>
-    <button class="btn sm" id="gAddMs" title="Add a milestone">+ Milestone</button>
     <button class="btn sm" id="gToday">Today</button>
   </div>
   <div class="g-scroll" id="gscroll">${ganttHTML()}</div>`;
@@ -1251,15 +1249,13 @@ function ganttHTML(){
   while(iso(m)<=T1){ const a=iso(m)<T0?T0:iso(m); const n=new Date(m.getFullYear(),m.getMonth()+1,1); const b=iso(n)>T1?addD(T1,1):iso(n);
     const lab=m.toLocaleDateString("en-US",{month:Z<6?"short":"long",year:"numeric"});
     months+=`<div class="th-m" style="left:${X(a)}px;width:${diff(a,b)*Z}px">${lab}</div>`; m=n; }
-  const extended=new Set(S.events.filter(e=>e.type==="sprint_ext"&&e.meta).map(e=>e.meta.sprint));
   let sprints="";
   for(const sp of S.sprints){
     const w=(diff(sp.start,sp.end)+1)*Z, narrow=w<90;
-    sprints+=`<div class="th-s${cur&&cur.n===sp.n?" cur":""}" data-sprint="${sp.n}" style="left:${X(sp.start)}px;width:${w}px" data-tip="<b>Sprint ${sp.n}</b> · ${fmt(sp.start)} – ${fmt(sp.end)}${sp.goal?`<br>${esc(sp.goal)}`:""}<br><span style='color:var(--faint)'>Click to edit sprint dates</span>">
-      <span class="pen">✎</span>${extended.has(sp.n)?`<span class="ext" title="Deadline was extended">⏱</span>`:""}
+    sprints+=`<div class="th-s${cur&&cur.n===sp.n?" cur":""}" data-sprint="${sp.n}" style="left:${X(sp.start)}px;width:${w}px" data-tip="<b>Sprint ${sp.n}</b> · ${fmt(sp.start)} – ${fmt(sp.end)}${sp.goal?`<br>${esc(sp.goal)}`:""}">
       <b>${narrow?"S":"Sprint "}${sp.n}</b><span>${narrow?fmt(sp.start).replace(/^(\w{3}) /,"$1 "):`${fmt(sp.start)} – ${fmt(sp.end)}`}</span></div>`;
   }
-  let h=`<div class="gantt${ui.nodates?" nodates":""}" id="gantt" style="--gw:${W}px">
+  let h=`<div class="gantt${ui.nodates?" nodates":""}" id="gantt" style="--gw:${W}px${ui.namew?`;--namew:${ui.namew}px`:""}">
    <div class="g-head"><div class="g-cells"><div>Milestone › Objective › Issue</div><div>Assignee</div><div class="r">SP</div><div class="c-date">Start</div><div class="c-date">Due</div></div>
      <div class="g-timehead" style="width:${W}px"><div class="th-months">${months}</div><div class="th-sprints">${sprints}</div></div></div>
    <div class="g-body">`;
@@ -1272,32 +1268,41 @@ function ganttHTML(){
   h+=bg;
   // ---- rows ----
   const filtering = ui.q || ui.hidden.length;
-  if(!S.milestones.length) h+=`<div class="empty" style="position:sticky;left:0;width:min(100vw,720px)">No milestones yet. Click <b>+ Milestone</b> above to start planning.</div>`;
+  if(!S.milestones.length) h+=`<div class="empty" style="position:sticky;left:0;width:min(100vw,720px)">No milestones yet. Milestones and issues created in ${provName(CONN)} show up here.</div>`;
+  // "Stories + Tasks" view: keep only user stories that have linked items, with those items;
+  // objectives and milestones left with nothing to show are dropped
+  const linked = ui.level==="linked";
+  let anyLinked=false;
   for(const ms of S.milestones){
     const objs=S.objectives.filter(o=>o.ms===ms.id);
     const msIssues=S.issues.filter(i=>i.ms===ms.id);
     const shown=msIssues.filter(matchIssue);
     if(filtering && !shown.length) continue;
-    h+=`<div class="g-group${ui.collapsed.includes("ms-"+ms.id)?" collapsed":""}" data-key="ms-${ms.id}">${summaryRow(1,ms,msIssues,X,Z)}<div class="g-kids"><div class="g-kids-inner">`;
+    let mh="";
     for(const o of objs){
       const oi=msIssues.filter(i=>i.obj===o.id), os=oi.filter(matchIssue);
       if(filtering && !os.length) continue;
-      h+=`<div class="g-group${ui.collapsed.includes("obj-"+o.id)?" collapsed":""}" data-key="obj-${o.id}">${summaryRow(2,o,oi,X,Z,ms)}<div class="g-kids"><div class="g-kids-inner">`;
       // items nest under their parent when it's shown in the same objective
       const byDate=(a,b)=>a.start<b.start?-1:a.start>b.start?1:a.id-b.id, here=new Set(os.map(i=>i.id));
       const order=(a,b)=>kindRank(a)-kindRank(b)||byDate(a,b);   // tasks/issues, then sub-tasks/bugs, then untracked
+      let roots=os.filter(i=>!here.has(i.parent)).sort(order);
+      if(linked){ roots=roots.filter(i=>i.kind==="story"&&os.some(k=>k.parent===i.id)); if(!roots.length) continue; }
+      mh+=`<div class="g-group${ui.collapsed.includes("obj-"+o.id)?" collapsed":""}" data-key="obj-${o.id}">${summaryRow(2,o,oi,X,Z,ms)}<div class="g-kids"><div class="g-kids-inner">`;
       const tree=(i,depth,seen)=>{
         const kids=seen.has(i.id)?[]:os.filter(k=>k.parent===i.id).sort(order); seen.add(i.id);
         if(!kids.length) return issueRow(i,X,Z,depth,false);
         return `<div class="g-group${ui.collapsed.includes("iss-"+i.id)?" collapsed":""}" data-key="iss-${i.id}">${issueRow(i,X,Z,depth,true)}<div class="g-kids"><div class="g-kids-inner">${kids.map(k=>tree(k,depth+1,seen)).join("")}</div></div></div>`;
       };
       const seen=new Set();
-      for(const i of os.filter(i=>!here.has(i.parent)).sort(order)) h+=tree(i,0,seen);
-      if(!oi.length) h+=`<div class="g-row l3"><div class="g-cells"><div class="c-name" style="color:var(--faint);font-style:italic">No issues in this objective.</div><div></div><div></div><div class="c-date"></div><div class="c-date"></div></div><div class="g-track" style="width:${W}px"></div></div>`;
-      h+=`</div></div></div>`;
+      for(const i of roots) mh+=tree(i,0,seen);
+      if(!oi.length) mh+=`<div class="g-row l3"><div class="g-cells"><div class="c-name" style="color:var(--faint);font-style:italic">No issues in this objective.</div><div></div><div></div><div class="c-date"></div><div class="c-date"></div></div><div class="g-track" style="width:${W}px"></div></div>`;
+      mh+=`</div></div></div>`;
     }
-    h+=`</div></div></div>`;
+    if(linked&&!mh) continue;
+    anyLinked=true;
+    h+=`<div class="g-group${ui.collapsed.includes("ms-"+ms.id)?" collapsed":""}" data-key="ms-${ms.id}">${summaryRow(1,ms,msIssues,X,Z)}<div class="g-kids"><div class="g-kids-inner">${mh}</div></div></div>`;
   }
+  if(linked&&S.milestones.length&&!anyLinked) h+=`<div class="empty" style="position:sticky;left:0;width:min(100vw,720px)">No tasks are linked to a user story${filtering?" that match the current filter":""} yet. Link a task to its story in ${provName(CONN)} (as a ${CONN&&CONN.provider==="gitlab"?"child item":"sub-issue"}, or "Parent: #12" in its description).</div>`;
   h+=`</div></div>`;
   return h;
 }
@@ -1308,24 +1313,22 @@ function summaryRow(level,obj,issues,X,Z,ms){
   const start=issues.length?issues.reduce((a,i)=>i.start<a?i.start:a,issues[0].start):null;
   const end=issues.length?issues.reduce((a,i)=>i.end>a?i.end:a,issues[0].end):null;
   const who=[...new Set(issues.map(i=>i.assignee))].sort((a,b)=>ASSIGNEES.indexOf(a)-ASSIGNEES.indexOf(b));
-  const pct=sp?Math.round(spDone/sp*100):0;
+  const prog=progress(issues), pct=prog.pct;
   const kind=level===1?"ms":"obj";
   const done=issues.filter(i=>i.status==="done").length;
   let track="";
   if(start){
     const l=X(start), w=(diff(start,end)+1)*Z;
-    track+=`<div class="sbar ${kind}" style="left:${l}px;width:${w}px;background:color-mix(in srgb,${color} 30%,transparent)" data-tip="<b>${esc(obj.title)}</b><br>${fmt(start)} – ${fmt(end)}<br>${done}/${issues.length} issues · ${spDone}/${sp} SP (${pct}%)"><i style="width:${pct}%;background:${color}"></i></div>`;
+    track+=`<div class="sbar ${kind}" style="left:${l}px;width:${w}px;background:color-mix(in srgb,${color} 30%,transparent)" data-tip="<b>${esc(obj.title)}</b><br>${fmt(start)} – ${fmt(end)}<br>${done}/${issues.length} issues · ${spDone}/${sp} SP<br>${pct}% done, by ${prog.by}"><i style="width:${pct}%;background:${color}"></i></div>`;
     if(level===1) track+=`<span class="sbar-lbl" style="left:${Math.max(l+w,obj.due?X(obj.due)+Z+8:0)+10}px">${pct}%${obj.note?" · "+esc(obj.note):""}</span>`;
   }
   if(level===1&&obj.due) track+=`<div class="diamond" style="left:${X(obj.due)+Z}px;background:${color}" data-tip="<b>${esc(obj.note)}</b><br>Due ${fmtL(obj.due)}"></div>`;
   const chev=`<button class="chev" data-toggle aria-label="Expand or collapse">▼</button>`;
   const head = level===1
-    ? `${chev}<span class="mbar" style="background:${color}"></span><span class="nm ed" data-ed="ms:${obj.id}:title">${esc(obj.title)}</span><span class="cnt-badge" data-tip="${done} of ${issues.length} done">${done}/${issues.length}</span>
-       <span class="rowact"><button class="iconbtn" data-act="add-obj" data-ms="${obj.id}" title="Add objective">+ Objective</button></span>`
-    : `${chev}<span class="obj-ico" style="border-color:${color}"></span><span class="nm ed" data-ed="obj:${obj.id}:title">${esc(obj.title)}</span><span class="cnt-badge">${done}/${issues.length}</span>
-`;
+    ? `${chev}<span class="mbar" style="background:${color}"></span><span class="nm">${esc(obj.title)}</span><span class="cnt-badge" data-tip="${done} of ${issues.length} done">${done}/${issues.length}</span>`
+    : `${chev}<span class="obj-ico" style="border-color:${color}"></span><span class="nm">${esc(obj.title)}</span><span class="cnt-badge">${done}/${issues.length}</span>`;
   const dueCell = level===1
-    ? `<div class="c-date ed" data-ed="ms:${obj.id}:due" title="Milestone due date">${obj.due?fmt(obj.due):(obj.note.includes("TBD")?'<span style="color:var(--warn)">TBD</span>':"—")}</div>`
+    ? `<div class="c-date" title="Milestone due date">${obj.due?fmt(obj.due):(obj.note.includes("TBD")?'<span style="color:var(--warn)">TBD</span>':"—")}</div>`
     : `<div class="c-date">${fmt(end)}</div>`;
   return `<div class="g-row l${level}"><div class="g-cells">
       <div class="c-name">${head}</div>
@@ -1340,19 +1343,19 @@ function issueRow(i,X,Z,depth=0,hasKids=false){
   const cls=["bar"]; if(i.tbd)cls.push("tbd"); if(i.status==="done")cls.push("done"); if(isLate(i))cls.push("late");
   const showTxt=w>70, roll=spRoll(i);
   const spTxt=i.sp?`${i.sp} SP`:roll?`${roll} SP (sub-items)`:"not estimated";
-  const tipTxt=`<b>#${i.id} ${esc(i.title)}</b><br>${KIND[i.kind]?KIND[i.kind].label+" · ":""}${esc(i.assignee)} · ${spTxt} · ${ST[i.status].label}<br>${fmt(i.start)} – ${fmt(i.end)}${i.tbd?" (TBD)":""}${i.parent?`<br>Sub-item of #${i.parent}`:""}${i.deps.length?`<br>Blocked by ${i.deps.map(d=>"#"+d).join(", ")}`:""}${isLate(i)?"<br><b style='color:var(--danger)'>Overdue</b>":""}<br><span style='color:var(--faint)'>Drag to move · drag right edge to resize · click to open</span>`;
+  const tipTxt=`<b>#${i.id} ${esc(i.title)}</b><br>${KIND[i.kind]?KIND[i.kind].label+" · ":""}${esc(i.assignee)} · ${spTxt} · ${ST[i.status].label}<br>${fmt(i.start)} – ${fmt(i.end)}${i.tbd?" (TBD)":""}${i.parent?`<br>Sub-item of #${i.parent}`:""}${i.deps.length?`<br>Blocked by ${i.deps.map(d=>"#"+d).join(", ")}`:""}${isLate(i)?"<br><b style='color:var(--danger)'>Overdue</b>":""}<br><span style='color:var(--faint)'>Click for details</span>`;
   // each level indents 36px; a faint guide line runs down from every ancestor's icon
   const STEP=36, pad=52+depth*STEP-(hasKids?25:0), guides=Array.from({length:depth},(_,k)=>52+k*STEP+6);
   const guideCss=guides.length?`background-image:${guides.map(()=>"linear-gradient(var(--border),var(--border))").join(",")};background-size:${guides.map(()=>"1px 100%").join(",")};background-position:${guides.map(x=>x+"px 0").join(",")};background-repeat:no-repeat;`:"";
   return `<div class="g-row l3${i.status==="done"?" done":""}" data-issue="${i.id}"><div class="g-cells">
-      <div class="c-name" style="padding-left:${pad}px;${guideCss}">${hasKids?`<button class="chev" data-toggle aria-label="Show or hide sub-items">▼</button>`:""}${issueIcon(i)}<span class="num" data-act="open" data-id="${i.id}">#${i.id}</span>${kindTag(i)}${i.parent&&!depth?`<span class="sub-of" title="Sub-item of #${i.parent}">↳ #${i.parent}</span>`:""}<span class="nm ed" data-ed="issue:${i.id}:title" title="${esc(i.title)}">${esc(shortTitle(i))}</span>${hasKids?kidsBadge(i):""}</div>
-      <div class="ed" data-ed="issue:${i.id}:assignee" style="gap:6px">${avatar(i.assignee)}<span style="font-size:12px;overflow:hidden;text-overflow:ellipsis">${esc(i.assignee)}</span></div>
-      <div class="c-r ed" data-ed="issue:${i.id}:sp">${spBadge(i)}</div>
-      <div class="c-date ed" data-ed="issue:${i.id}:start">${fmt(i.start)}</div>
-      <div class="c-date ed" data-ed="issue:${i.id}:end" style="${isLate(i)?"color:var(--danger);font-weight:600":""}">${fmt(i.end)}</div>
+      <div class="c-name" style="padding-left:${pad}px;${guideCss}">${hasKids?`<button class="chev" data-toggle aria-label="Show or hide sub-items">▼</button>`:""}${issueIcon(i)}<span class="num" data-act="open" data-id="${i.id}">#${i.id}</span>${kindTag(i)}${i.parent&&!depth?`<span class="sub-of" title="Sub-item of #${i.parent}">↳ #${i.parent}</span>`:""}<span class="nm" title="${esc(i.title)}">${esc(shortTitle(i))}</span>${hasKids?kidsBadge(i):""}</div>
+      <div style="gap:6px">${avatar(i.assignee)}<span style="font-size:12px;overflow:hidden;text-overflow:ellipsis">${esc(i.assignee)}</span></div>
+      <div class="c-r">${spBadge(i)}</div>
+      <div class="c-date">${fmt(i.start)}</div>
+      <div class="c-date" style="${isLate(i)?"color:var(--danger);font-weight:600":""}">${fmt(i.end)}</div>
     </div><div class="g-track" style="width:${W}px">
       <div class="${cls.join(" ")}" data-bar="${i.id}" style="left:${l}px;width:${w}px;background:${mc(i.assignee)};color:${mt(i.assignee)}" data-tip="${esc(tipTxt)}">
-        <span class="bsp">${i.sp||roll||"–"}</span>${showTxt?`<span class="btxt">${i.status==="done"?"✓ ":""}${esc(i.assignee==="Team"?shortTitle(i):i.assignee+" · "+shortTitle(i))}</span>`:""}<span class="rh"></span>
+        <span class="bsp">${i.sp||roll||"–"}</span>${showTxt?`<span class="btxt">${i.status==="done"?"✓ ":""}${esc(i.assignee==="Team"?shortTitle(i):i.assignee+" · "+shortTitle(i))}</span>`:""}
       </div></div></div>`;
 }
 function wireOverview(){
@@ -1362,16 +1365,25 @@ function wireOverview(){
   document.getElementById("gLevel").onclick=e=>{ const b=e.target.closest("button"); if(!b) return; setLevel(b.dataset.lv); };
   document.getElementById("gDates").onclick=()=>{ ui.nodates=!ui.nodates; saveUI(); renderOverview(); };
   document.getElementById("gToday").onclick=()=>scrollToToday(true);
-  document.getElementById("gAddMs").onclick=addMilestone;
   document.getElementById("gZoom").onclick=e=>{ const b=e.target.closest("button"); if(!b) return; const sc=document.getElementById("gscroll"); const ratio=+b.dataset.z/ui.zoom; const center=sc.scrollLeft+sc.clientWidth/2; ui.zoom=+b.dataset.z; saveUI(); renderOverview(); const sc2=document.getElementById("gscroll"); sc2.scrollLeft=center*ratio-sc2.clientWidth/2; };
   wireGantt();
 }
-// outline levels: collapse = milestones only, summary = milestones + objectives, expand = everything
+// outline levels: collapse = milestones only, summary = milestones + objectives,
+// story = milestones + objectives + user stories (their tasks/sub-items folded),
+// linked = only user stories that have linked tasks, with those tasks (a filter: other items are hidden),
+// expand = everything (labels and tooltips: LEVELS)
 function setLevel(lv){
+  const wasLinked=ui.level==="linked";
+  ui.level=lv;
+  document.querySelectorAll("#gLevel button").forEach(b=>b.classList.toggle("active",b.dataset.lv===lv));
+  // the linked view hides rows, so entering or leaving it needs a re-render (keeping the scroll position)
+  if(wasLinked!==(lv==="linked")){ const sc=document.getElementById("gscroll"), l=sc.scrollLeft, t=sc.scrollTop; sc.innerHTML=ganttHTML(); sc.scrollLeft=l; sc.scrollTop=t; wireGantt(); }
+  if(lv==="linked") lv="expand";
   const groups=[...document.querySelectorAll("#gantt .g-group")];
-  // sub-item groups (iss-) stay open unless collapsed by hand, so expanding a milestone later shows the full tree
+  // sub-item groups (iss-) stay open unless collapsed by hand, so expanding a milestone later shows the full tree;
+  // the story view is the exception: it folds every item's children so only the top-level stories remain
   groups.forEach(gr=>{ const k=gr.dataset.key, isObj=k.startsWith("obj-"), isIss=k.startsWith("iss-");
-    gr.classList.toggle("collapsed", isIss ? false : lv==="collapse" ? true : lv==="summary" ? isObj : false); });
+    gr.classList.toggle("collapsed", isIss ? lv==="story" : lv==="collapse" ? true : lv==="summary" ? isObj : false); });
   ui.collapsed=groups.filter(gr=>gr.classList.contains("collapsed")).map(gr=>gr.dataset.key); saveUI();
 }
 function setAll(collapse){
@@ -1382,257 +1394,90 @@ function setAll(collapse){
 function wireGantt(){
   const g=document.getElementById("gantt");
   g.addEventListener("click",ganttClick);
-  g.addEventListener("pointerdown",barDown);
+  g.addEventListener("pointerdown",colResizeDown);
+  g.addEventListener("dblclick",colResizeFit);
+  // clicks on the column edge (or ending a column drag) must not also toggle a group or open an issue
+  g.addEventListener("click",e=>{ if(colResizeDown._justDragged||onColEdge(e)){ colResizeDown._justDragged=false; e.stopImmediatePropagation(); e.preventDefault(); } },true);
+}
+/* ---------- resizable name column ---------- */
+const NAMEW_MIN=200;
+const nameWMax=()=>Math.max(NAMEW_MIN,Math.min(1600,window.innerWidth-160));
+// true when the pointer is on the left panel's right edge (the 8px grab zone drawn by .g-cells::after)
+function onColEdge(e){ const c=e.target.closest(".g-cells"); if(!c) return false; const r=c.getBoundingClientRect(); return e.clientX>=r.right-5&&e.clientX<=r.right+5; }
+function colResizeDown(e){
+  if(e.button!==0||!onColEdge(e)) return;
+  e.preventDefault(); e.stopPropagation();
+  const g=document.getElementById("gantt"), nm=g.querySelector(".g-head .g-cells>div");
+  const x0=e.clientX, w0=nm.getBoundingClientRect().width;
+  let moved=false;
+  g.classList.add("resizing");
+  const move=ev=>{ const w=Math.round(Math.min(nameWMax(),Math.max(NAMEW_MIN,w0+ev.clientX-x0)));
+    if(Math.abs(ev.clientX-x0)>2) moved=true; g.style.setProperty("--namew",w+"px"); ui.namew=w; };
+  const up=()=>{ window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up);
+    g.classList.remove("resizing"); if(moved){ colResizeDown._justDragged=true; setTimeout(()=>colResizeDown._justDragged=false,0); saveUI(); } };
+  window.addEventListener("pointermove",move); window.addEventListener("pointerup",up);
+}
+// double-click the edge: widen (or narrow) the column so the longest name fits without "…"
+function colResizeFit(e){
+  if(!onColEdge(e)) return;
+  e.preventDefault(); e.stopPropagation();
+  const g=document.getElementById("gantt"), cur=g.querySelector(".g-head .g-cells>div").getBoundingClientRect().width;
+  let need=0;
+  g.querySelectorAll(".g-row .c-name").forEach(c=>{ const n=c.querySelector(".nm"); if(n) need=Math.max(need,n.scrollWidth-n.clientWidth); });
+  const w=Math.round(Math.min(nameWMax(),Math.max(NAMEW_MIN,cur+need+(need?12:0))));
+  g.style.setProperty("--namew",w+"px"); ui.namew=w; saveUI();
 }
 function ganttClick(e){
-  if(e.target.closest(".editing")) return;
-  const sh=e.target.closest(".th-s"); if(sh){ openSprint(+sh.dataset.sprint); return; }
-  const act=e.target.closest("[data-act]");
-  if(act){ const a=act.dataset.act;
-    if(a==="open") return openIssue(+act.dataset.id);
-    if(a==="add-obj") return addObjective(+act.dataset.ms);
-  }
-  const ed=e.target.closest(".ed"); if(ed) return startEdit(ed);
-  if(e.target.closest(".bar")) return; // handled by pointer logic
-  const row=e.target.closest(".g-row");
-  if(!row) return;
+  const bar=e.target.closest(".bar"); if(bar) return openIssue(+bar.dataset.bar);
+  const act=e.target.closest("[data-act]"); if(act&&act.dataset.act==="open") return openIssue(+act.dataset.id);
+  const row=e.target.closest(".g-row"); if(!row) return;
   if(e.target.closest("[data-toggle]")) return toggleGroup(row.parentElement);
-  if(row.classList.contains("l3")){ if(row.dataset.issue && e.target.closest(".g-cells")) openIssue(+row.dataset.issue); return; }
-  if(e.target.closest("[data-toggle]")||e.target.closest(".g-cells")) toggleGroup(row.parentElement);
+  if(row.classList.contains("l3")){ if(row.dataset.issue&&e.target.closest(".g-cells")) openIssue(+row.dataset.issue); return; }
+  if(e.target.closest(".g-cells")) toggleGroup(row.parentElement);
 }
 function toggleGroup(gr){
   if(!gr||!gr.classList.contains("g-group")) return;
   gr.classList.toggle("collapsed");
   const k=gr.dataset.key; ui.collapsed=gr.classList.contains("collapsed")?[...new Set([...ui.collapsed,k])]:ui.collapsed.filter(x=>x!==k); saveUI();
 }
-function addMilestone(){
-  const id=Math.max(0,...S.milestones.map(m=>m.id))+1;
-  const palette=["#bc8cff","#58a6ff","#f778ba","#e3b341","#3fb950","#ff7b72","#79c0ff"];
-  S.milestones.push({id,title:`M${id} · New milestone`,color:palette[(id-1)%palette.length],due:null,note:""});
-  logEvent("milestone",`created milestone M${id} · New milestone`);
-  renderOverview();
-  const el=document.querySelector(`[data-ed="ms:${id}:title"]`); if(el){ el.scrollIntoView({block:"center"}); startEdit(el); }
-}
-function addObjective(msId){
-  const id=Math.max(0,...S.objectives.map(o=>o.id))+1;
-  S.objectives.push({id,ms:msId,title:"New objective"});
-  ui.collapsed=ui.collapsed.filter(k=>k!=="ms-"+msId);
-  logEvent("milestone",`added objective "New objective" to ${msById(msId).title}`);
-  renderOverview();
-  const el=document.querySelector(`[data-ed="obj:${id}:title"]`); if(el){ el.scrollIntoView({block:"center"}); startEdit(el); }
-}
-
-/* ---------- GitHub-style inline editing ---------- */
-function startEdit(cell){
-  if(cell.classList.contains("editing")) return;
-  const [kind,idS,field]=cell.dataset.ed.split(":"); const id=+idS;
-  const rec = kind==="issue"?byId(id) : kind==="ms"?msById(id) : objById(id);
-  const val = rec[field];
-  const orig = cell.innerHTML;
-  cell.classList.add("editing");
-  let ctl;
-  if(field==="assignee") ctl=`<select>${ASSIGNEES.map(a=>`<option ${a===val?"selected":""}>${a}</option>`).join("")}</select>`;
-  else if(field==="sp") ctl=`<select>${spOptions(val)}</select>`;
-  else if(field==="start"||field==="end"||field==="due") ctl=`<input type="date" value="${val||""}">`;
-  else ctl=`<input type="text" value="${esc(val)}">`;
-  const wide = field==="title";
-  cell.innerHTML=`<span class="ie">${ctl}${wide?`<button class="btn primary sm" data-ok>Save</button><button class="btn sm" data-cancel>Cancel</button>`:""}</span>`;
-  if(wide){ cell.style.position="relative"; }
-  const input=cell.querySelector("input,select"); input.focus(); if(input.select&&field==="title") input.select();
-  let finished=false;
-  const finish=(commit)=>{
-    if(finished) return; finished=true;
-    cell.classList.remove("editing");
-    if(commit){ const nv=input.value; if(applyEdit(kind,id,field,nv)) return; }
-    cell.innerHTML=orig;
-  };
-  input.addEventListener("keydown",e=>{ if(e.key==="Enter"){e.preventDefault();finish(true);} if(e.key==="Escape"){e.preventDefault();finish(false);} });
-  if(input.tagName==="SELECT") input.addEventListener("change",()=>finish(true));
-  input.addEventListener("blur",()=>setTimeout(()=>finish(!cell.dataset.cancel),120));
-  cell.querySelectorAll("button").forEach(b=>b.addEventListener("mousedown",e=>{ e.preventDefault(); if(b.hasAttribute("data-cancel")) finish(false); else finish(true); }));
-}
-// returns true when it re-rendered
-function applyEdit(kind,id,field,nv){
-  if(kind==="issue"){
-    const i=byId(id); let ov=i[field];
-    if(field==="sp") nv=+nv;
-    if(field==="title"){ nv=nv.trim(); if(!nv) return false; }
-    if((field==="start"||field==="end") && !nv) return false;
-    if(nv===ov) return false;
-    if(field==="start"&&nv>i.end){ i.end=addD(nv,diff(i.start,i.end)); }
-    if(field==="end"&&nv<i.start){ toast("Due date can't be before the start date"); return false; }
-    i[field]=nv;
-    const ref=`#${i.id} ${i.title}`;
-    if(field==="title") logEvent("issue_updated",`renamed #${i.id} from "${ov}" to "${nv}"`,i.id);
-    else if(field==="assignee") logEvent("issue_updated",`reassigned ${ref} from ${ov} to ${nv}`,i.id);
-    else if(field==="sp") logEvent("issue_updated",`changed story points of ${ref} from ${ov||"none"} to ${nv||"none"}`,i.id);
-    else if(field==="end") logEvent(nv>ov?"deadline":"issue_updated",`${nv>ov?"extended":"moved"} due date of ${ref} from ${fmt(ov)} to ${fmt(nv)}`,i.id);
-    else if(field==="start") logEvent("issue_updated",`moved start of ${ref} from ${fmt(ov)} to ${fmt(nv)}`,i.id);
-  } else if(kind==="ms"){
-    const m=msById(id), ov=m[field];
-    if(field==="title"){ nv=nv.trim(); if(!nv||nv===ov) return false; m.title=nv; logEvent("milestone",`renamed milestone "${ov}" to "${nv}"`); }
-    if(field==="due"){ nv=nv||null; if(nv===ov) return false; m.due=nv; logEvent(ov&&nv&&nv>ov?"deadline":"milestone",ov&&nv&&nv>ov?`extended milestone ${m.title} from ${fmt(ov)} to ${fmt(nv)}`:`set due date of ${m.title} to ${nv?fmt(nv):"none"}`); }
-  } else {
-    const o=objById(id); nv=nv.trim(); if(!nv||nv===o.title) return false;
-    logEvent("milestone",`renamed objective "${o.title}" to "${nv}"`); o.title=nv;
-  }
-  render();
-  const el=document.querySelector(`[data-ed="${kind}:${id}:${field}"]`); if(el){ el.classList.add("flash"); }
-  toast("Edited · remember to Save");
-  return true;
-}
-
-/* ---------- drag to move / resize bars ---------- */
-let dragState=null;
-function barDown(e){
-  const bar=e.target.closest(".bar"); if(!bar||e.button!==0) return;
-  const i=byId(+bar.dataset.bar);
-  dragState={bar,i,x0:e.clientX,mode:e.target.classList.contains("rh")?"resize":"move",l0:bar.offsetLeft,w0:bar.offsetWidth,dd:0,moved:false};
-  bar.setPointerCapture(e.pointerId);
-  bar.addEventListener("pointermove",barMove); bar.addEventListener("pointerup",barUp,{once:true});
-  tip.classList.remove("on");
-}
-function barMove(e){
-  const d=dragState; if(!d) return;
-  const dx=e.clientX-d.x0; if(Math.abs(dx)>3) d.moved=true; if(!d.moved) return;
-  d.bar.classList.add("dragging");
-  d.dd=Math.round(dx/ui.zoom);
-  if(d.mode==="move") d.bar.style.left=(d.l0+d.dd*ui.zoom)+"px";
-  else d.bar.style.width=Math.max(ui.zoom,d.w0+d.dd*ui.zoom)+"px";
-  const ns=d.mode==="move"?addD(d.i.start,d.dd):d.i.start, ne=addD(d.i.end,d.dd);
-  tip.innerHTML=`<b>#${d.i.id}</b> ${fmt(ns)} – ${fmt(ne<ns?ns:ne)}`; tip.classList.add("on");
-  tip.style.left=(e.clientX+14)+"px"; tip.style.top=(e.clientY+14)+"px";
-}
-function barUp(){
-  const d=dragState; dragState=null; d.bar.removeEventListener("pointermove",barMove); d.bar.classList.remove("dragging"); tip.classList.remove("on");
-  if(!d.moved){ openIssue(d.i.id); return; }
-  if(!d.dd){ renderOverview(); return; }
-  const i=d.i, os=i.start, oe=i.end;
-  if(d.mode==="move"){ i.start=addD(os,d.dd); i.end=addD(oe,d.dd); logEvent(d.dd>0?"deadline":"issue_updated",`rescheduled #${i.id} ${i.title} from ${fmt(os)}–${fmt(oe)} to ${fmt(i.start)}–${fmt(i.end)}`,i.id); }
-  else { const ne=addD(oe,d.dd); i.end=ne<i.start?i.start:ne; logEvent(i.end>oe?"deadline":"issue_updated",`${i.end>oe?"extended":"shortened"} due date of #${i.id} ${i.title} from ${fmt(oe)} to ${fmt(i.end)}`,i.id); }
-  renderOverview(); toast("Rescheduled · remember to Save");
-}
 
 /* =====================================================================
-   ISSUE MODAL
+   ISSUE DETAILS (read-only: changes are made on GitHub or GitLab)
    ===================================================================== */
-let editing=null, draftDefaults=null;
 const $=id=>document.getElementById(id);
-function openIssue(id,defaults){
-  if(id===null&&!S.milestones.length){ toast("Add a milestone first (Overview → + Milestone)"); return; }
-  editing=id; draftDefaults=defaults||{};
-  const t=today();
-  const i = id===null ? {id:nextId(),title:"",description:"",assignee:ui.viewer,status:"todo",sp:3,ms:draftDefaults.ms||(msById(2)?2:S.milestones[0].id),obj:draftDefaults.obj||null,start:t,end:addD(t,6),tbd:false,deps:[],labels:[]} : byId(id);
-  if(!i) return;
-  $("mTitle").innerHTML = id===null ? "New issue" : `${issueIcon(i)} Issue #${i.id}`;
-  $("fTitle").value=i.title; $("fDesc").value=i.description||"";
-  $("fAssignee").innerHTML=ASSIGNEES.map(a=>`<option value="${a}">${a} — ${MEMBERS[a].role}</option>`).join(""); $("fAssignee").value=i.assignee;
-  $("fStatus").innerHTML=STATUSES.map(([k,l])=>`<option value="${k}">${l}</option>`).join(""); $("fStatus").value=i.status;
-  $("fSp").innerHTML=spOptions(i.sp);
-  $("fKind").innerHTML=`<option value="">—</option>`+KINDS.map(([k,l])=>`<option value="${k}">${l}</option>`).join(""); $("fKind").value=i.kind||"";
-  $("fParent").value=i.parent||"";
-  $("fMs").innerHTML=S.milestones.map(m=>`<option value="${m.id}">${esc(m.title)}</option>`).join(""); $("fMs").value=i.ms;
-  fillObj(i.ms,i.obj);
-  $("fStart").value=i.start; $("fEnd").value=i.end; $("fTbd").checked=!!i.tbd;
-  $("fDeps").value=i.deps.join(", "); $("fLabels").value=i.labels.join(", ");
-  sprintHint();
-  $("mDelete").style.display=id===null?"none":"";
-  const hist=id===null?[]:S.events.filter(e=>e.issue===id).slice(0,40);
-  $("mHist").innerHTML = id===null?"" : `<h4>History · ${S.events.filter(e=>e.issue===id).length} events</h4>${hist.length?hist.map(evHTML).join(""):'<div class="hint">No activity yet.</div>'}`;
-  $("ovIssue").classList.add("open"); setTimeout(()=>$("fTitle").focus(),50);
+const issueUrl=id=>!CONN||!S.project.url?null:`${S.project.url}/${CONN.provider==="gitlab"?"-/":""}issues/${id}`;
+function openIssue(id){
+  const i=byId(id); if(!i) return;
+  const ms=msById(i.ms), obj=objById(i.obj), sp=sprintAt(i.end), par=i.parent?byId(i.parent):null, kids=kidsOf(i.id);
+  const ref=n=>byId(n)?`<span class="ref" data-open="${n}">#${n}</span>`:`#${n}`;
+  const row=(k,v)=>`<div><span>${k}</span><b>${v}</b></div>`;
+  const roll=spRoll(i);
+  $("mTitle").innerHTML=`${issueIcon(i)} Issue #${i.id}`;
+  const url=issueUrl(i.id);
+  $("mOpen").hidden=!url; if(url){ $("mOpen").href=url; $("mOpen").textContent=`Open in ${provName(CONN)} ↗`; }
+  $("mHint").textContent=CONN?`Read-only. To change this issue, edit it in ${provName(CONN)}.`:"Read-only demo data.";
+  $("mBody").innerHTML=`<h3>${kindTag(i)} ${esc(i.title)}</h3>
+    ${i.description.trim()?`<pre class="desc">${linkRefs(i.description)}</pre>`:`<div class="hint">No description.</div>`}
+    <div class="kv">
+      ${row("Status",`<span style="color:${ST[i.status].color}">●</span> ${ST[i.status].label}${isLate(i)?` <span style="color:var(--danger);font-weight:600">Overdue</span>`:""}`)}
+      ${row("Assignee",`${avatar(i.assignee)} ${esc(i.assignee)}`)}
+      ${row("Story points",i.sp?`${i.sp}${spCounts(i)?"":` <span class="hint">(counted in #${ancestors(i).find(p=>p.sp).id}'s estimate)</span>`}`:roll?`${roll} <span class="hint">(total of sub-items)</span>`:`<span class="hint">Not estimated</span>`)}
+      ${row("Type",KIND[i.kind]?KIND[i.kind].label:"—")}
+      ${row("Milestone",ms?`<span class="mbar" style="background:${ms.color};height:12px"></span>${esc(ms.title)}`:"—")}
+      ${row("Objective",obj?esc(obj.title):"—")}
+      ${row("Start",fmtL(i.start))}
+      ${row(i.status==="done"?"Closed":"Due",i.tbd?`<span style="color:var(--warn)">TBD</span>`:fmtL(i.end))}
+      ${row("Sprint",sp?`Sprint ${sp.n} (${fmt(sp.start)} – ${fmt(sp.end)})`:"—")}
+      ${par?row("Parent",`${ref(par.id)} ${esc(shortTitle(par))}`):""}
+      ${kids.length?row("Sub-items",kids.map(k=>ref(k.id)).join(" ")):""}
+      ${i.deps.length?row("Blocked by",i.deps.map(ref).join(" ")):""}
+      ${i.labels.length?row("Labels",i.labels.map(labelHTML).join(" ")):""}
+    </div>`;
+  const hist=S.events.filter(e=>e.issue===id);
+  $("mHist").innerHTML=`<h4>History · ${hist.length} event${hist.length===1?"":"s"}</h4>${hist.length?hist.slice(0,40).map(evHTML).join(""):'<div class="hint">No activity yet.</div>'}`;
+  $("ovIssue").classList.add("open");
 }
-function fillObj(ms,sel){ const os=S.objectives.filter(o=>o.ms===+ms); $("fObj").innerHTML=os.map(o=>`<option value="${o.id}">${esc(o.title)}</option>`).join(""); $("fObj").value=sel&&os.some(o=>o.id===sel)?sel:(os[0]?os[0].id:""); }
-function sprintHint(){ const s=$("fStart").value; const sp=s&&sprintAt(s); $("fSprint").value=sp?`Sprint ${sp.n} (${fmt(sp.start)} – ${fmt(sp.end)})`:"—"; }
-function nextId(){ const used=[...S.issues.map(i=>i.id),...S.events.filter(e=>e.issue).map(e=>e.issue)]; return Math.max(0,...used)+1; }
-function closeOverlays(){ document.querySelectorAll(".overlay").forEach(o=>o.classList.remove("open")); editing=null; }
-function saveIssue(){
-  const title=$("fTitle").value.trim(); if(!title){ $("fTitle").focus(); return; }
-  let start=$("fStart").value||today(), end=$("fEnd").value||start; if(end<start) end=start;
-  const rec={title, description:$("fDesc").value, assignee:$("fAssignee").value, status:$("fStatus").value, sp:+$("fSp").value,
-    ms:+$("fMs").value, obj:+$("fObj").value||null, start, end, tbd:$("fTbd").checked,
-    deps:$("fDeps").value.split(",").map(x=>parseInt(x,10)).filter(x=>!isNaN(x)),
-    labels:$("fLabels").value.split(",").map(x=>x.trim()).filter(Boolean),
-    kind:$("fKind").value||null, parent:parseInt($("fParent").value.replace("#",""),10)||null};
-  if(rec.parent){
-    const p=byId(rec.parent);
-    if(!p){ toast(`There's no issue #${rec.parent}`); $("fParent").focus(); return; }
-    if(editing!==null&&(p.id===editing||ancestors(p).some(a=>a.id===editing))){ toast(`#${p.id} is under this issue, so it can't be its parent`); $("fParent").focus(); return; }
-    // a new parent in the same milestone brings the item into its objective, so it shows under it
-    const old=editing===null?null:byId(editing).parent;
-    if(rec.parent!==old&&p.ms===rec.ms) rec.obj=p.obj;
-  }
-  // a type change moves an unlinked item between automatic groups, the same way a reload would place it
-  // (only when it sits in an automatic group, so hand-made objectives are kept)
-  const prev=editing===null?null:(byId(editing).kind||null), linked=rec.parent&&byId(rec.parent)?.ms===rec.ms;
-  if(rec.kind&&rec.kind!==prev&&!linked&&AUTO_GROUPS.has(objById(rec.obj)?.title)){
-    const [,title]=autoGroup(rec.kind,S.issues.some(x=>x.ms===rec.ms&&x.kind==="story"&&x.id!==editing));
-    let o=S.objectives.find(x=>x.ms===rec.ms&&x.title===title);
-    if(!o){ o={id:Math.max(0,...S.objectives.map(x=>x.id))+1,ms:rec.ms,title}; S.objectives.push(o); }
-    rec.obj=o.id;
-  }
-  if(!rec.obj){ const id=Math.max(0,...S.objectives.map(o=>o.id))+1; S.objectives.push({id,ms:rec.ms,title:"General"}); rec.obj=id; }
-  if(editing===null){
-    rec.id=nextId(); rec.closedAt=rec.status==="done"?today():null; S.issues.push(rec);
-    logEvent("issue_created",`opened issue #${rec.id} ${rec.title}`,rec.id);
-  } else {
-    const i=byId(editing), changes=[];
-    const ref=`#${i.id} ${rec.title}`;
-    if(i.status!==rec.status) setStatus(i,rec.status,true);
-    if(rec.end>i.end) logEvent("deadline",`extended due date of ${ref} from ${fmt(i.end)} to ${fmt(rec.end)}`,i.id);
-    else if(rec.end<i.end||rec.start!==i.start) changes.push("dates");
-    if(i.assignee!==rec.assignee) logEvent("issue_updated",`reassigned ${ref} from ${i.assignee} to ${rec.assignee}`,i.id);
-    if((i.sp||0)!==rec.sp) logEvent("issue_updated",`changed story points of ${ref} from ${i.sp||"none"} to ${rec.sp||"none"}`,i.id);
-    if((i.kind||null)!==rec.kind) changes.push("type");
-    if((i.parent||null)!==rec.parent) changes.push("parent");
-    if(i.title!==rec.title) changes.push("title");
-    if(i.description!==rec.description) changes.push("description");
-    if(i.ms!==rec.ms||i.obj!==rec.obj) changes.push("milestone/objective");
-    if(i.deps.join()!==rec.deps.join()) changes.push("dependencies");
-    if(i.labels.join()!==rec.labels.join()) changes.push("labels");
-    if(i.tbd!==rec.tbd) changes.push("TBD flag");
-    delete rec.status; Object.assign(i,rec);
-    if(changes.length) logEvent("issue_updated",`edited ${changes.join(", ")} of ${ref}`,i.id);
-  }
-  // drop an automatic group left empty by the move
-  S.objectives=S.objectives.filter(o=>!AUTO_GROUPS.has(o.title)||S.issues.some(i=>i.obj===o.id));
-  closeOverlays(); render(); toast("Issue saved · remember to Save");
-}
-function setStatus(i,ns,quiet){
-  const os=i.status; if(os===ns) return;
-  i.status=ns;
-  if(ns==="done"){ i.closedAt=today(); logEvent("issue_closed",`closed issue #${i.id} ${i.title}`,i.id); }
-  else if(os==="done"){ i.closedAt=null; logEvent("issue_reopened",`reopened issue #${i.id} ${i.title} (now ${ST[ns].label})`,i.id); }
-  else logEvent("status",`moved #${i.id} ${i.title} to ${ST[ns].label}`,i.id);
-}
-function deleteIssue(){
-  if(editing===null) return; const i=byId(editing);
-  if(!confirm(`Delete issue #${i.id} "${i.title}"? This is recorded in the activity log.`)) return;
-  S.issues=S.issues.filter(x=>x.id!==i.id); S.issues.forEach(x=>{ x.deps=x.deps.filter(d=>d!==i.id); if(x.parent===i.id) x.parent=i.parent||null; });
-  logEvent("issue_deleted",`deleted issue #${i.id} ${i.title}`,i.id);
-  closeOverlays(); render(); toast("Issue deleted · remember to Save");
-}
-
-/* ---------- sprint modal ---------- */
-let editingSprint=null;
-function openSprint(n){
-  const sp=S.sprints.find(s=>s.n===n); editingSprint=n;
-  $("sTitle").textContent=`Edit Sprint ${n}`; $("sGoal").value=sp.goal||""; $("sStart").value=sp.start; $("sEnd").value=sp.end;
-  const cnt=S.issues.filter(i=>dueIn(i,sp));
-  $("sHint").innerHTML=`${cnt.length} issues (${spSum(cnt)} SP) are due in this sprint. Moving the end date shifts the start of the next sprint so sprints never overlap.`;
-  $("ovSprint").classList.add("open");
-}
-function saveSprint(){
-  const k=S.sprints.findIndex(s=>s.n===editingSprint), sp=S.sprints[k];
-  const ns=$("sStart").value, ne=$("sEnd").value; if(!ns||!ne||ne<ns){ toast("End must be on or after start"); return; }
-  const os=sp.start, oe=sp.end, og=sp.goal;
-  sp.start=ns; sp.end=ne; sp.goal=$("sGoal").value.trim();
-  if(k>0&&S.sprints[k-1].end>=ns) S.sprints[k-1].end=addD(ns,-1);
-  for(let j=k+1;j<S.sprints.length;j++){ const a=S.sprints[j-1], b=S.sprints[j]; if(b.start<=a.end){ const len=diff(b.start,b.end); b.start=addD(a.end,1); if(b.end<b.start) b.end=addD(b.start,Math.max(len,13)); } else break; }
-  if(ne>oe) logEvent("sprint_ext",`extended Sprint ${sp.n} end from ${fmt(oe)} to ${fmt(ne)}`,null,{sprint:sp.n});
-  else if(ne!==oe||ns!==os) logEvent("sprint",`changed Sprint ${sp.n} dates to ${fmt(ns)} – ${fmt(ne)}`,null,{sprint:sp.n});
-  if(og!==sp.goal) logEvent("sprint",`set Sprint ${sp.n} goal to "${sp.goal}"`,null,{sprint:sp.n});
-  closeOverlays(); render();
-}
+function closeOverlays(){ document.querySelectorAll(".overlay").forEach(o=>o.classList.remove("open")); }
 
 /* =====================================================================
    ACTIVITY · contribution graph + daily breakdown + feed
@@ -1669,6 +1514,16 @@ function renderActivity(){
   const memStats=PEOPLE.map(p=>{ const ev=S.events.filter(e=>e.actor===p); return {p,commits:ev.filter(e=>e.type==="commit").length,closed:ev.filter(e=>e.type==="issue_closed").length,opened:ev.filter(e=>e.type==="issue_created").length,total:ev.length,streak:streak(p)}; });
   view.innerHTML=`<div class="pane"><div class="p-4 flex flex-col gap-4" style="padding:16px;display:flex;flex-direction:column;gap:16px">
    <section class="card-p">
+     <div class="card-h"><h3>Recent activity</h3><span class="sub" id="rcSub"></span><div style="flex:1"></div>
+       <span class="rc-live" id="rcLive"></span><button class="btn sm" id="rcRefresh" title="Check for new activity now">Refresh</button></div>
+     <div class="rc-bar">
+       <div class="seg" id="rcWin" title="How far back to look">${RC_WINDOWS.map(([k,l])=>`<button data-w="${k}" class="${rcWinKey()===k?"active":""}">${l}</button>`).join("")}</div>
+       <select class="sel" id="rcWho" title="Show one member's activity"></select>
+       <div class="seg" id="rcFilter" title="Kind of activity"></div>
+     </div>
+     <div class="rc-list" id="rcList"></div>
+   </section>
+   <section class="card-p">
      <div class="card-h"><h3>${total.toLocaleString()} ${ui.hmMetric==="commits"?"commits":"contributions"} ${ui.hmMember==="all"?"across the team":"by "+ui.hmMember}</h3><span class="sub">${fmt(T0)}, ${T0.slice(0,4)} – ${fmt(T1)}, ${T1.slice(0,4)} · one square per day</span>
        <div class="spacer" style="flex:1"></div>
        <div class="seg" id="hmMember"><button data-m="all" class="${ui.hmMember==="all"?"active":""}">Team</button>${PEOPLE.map(p=>`<button data-m="${p}" class="${ui.hmMember===p?"active":""}">${p}</button>`).join("")}</div>
@@ -1680,7 +1535,7 @@ function renderActivity(){
    </section>
    <div class="grid gap-4" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:16px">
      <section class="card-p"><div class="card-h"><h3>Daily commits by member</h3><span class="sub">Last 6 weeks</span></div><div class="chart" style="padding:12px 14px">${dailyStack()}</div></section>
-     <section class="card-p"><div class="card-h"><h3>Contributors</h3><span class="sub">Since Sep 1</span></div>
+     <section class="card-p"><div class="card-h"><h3>Contributors</h3><span class="sub">Since ${fmt(S.sprints[0].start)}</span></div>
        ${memStats.sort((a,b)=>b.total-a.total).map(s=>`<div class="mem-row">${avatar(s.p,28)}<div style="flex:1;min-width:0"><div style="font-weight:600">${s.p}</div><div class="hint">${MEMBERS[s.p].role}</div></div>
          <div class="hint" style="text-align:right;line-height:1.5"><b style="color:var(--text)">${s.commits}</b> commits · <b style="color:var(--text)">${s.closed}</b> closed · <b style="color:var(--text)">${s.opened}</b> opened<br>${s.streak}-day streak · ${s.total} events</div></div>`).join("")}
      </section>
@@ -1689,7 +1544,7 @@ function renderActivity(){
      <div class="card-h"><h3>Activity stream</h3><span class="sub" id="feedCount"></span><div style="flex:1"></div>
        <input class="inp" id="feedQ" type="search" placeholder="Search activity…" value="${esc(ui.feedQ)}" style="width:180px">
        <select class="sel" id="feedMember"><option value="all">All members</option>${PEOPLE.map(p=>`<option ${ui.feedMember===p?"selected":""}>${p}</option>`).join("")}</select>
-       <select class="sel" id="feedType"><option value="all">All event types</option>${Object.entries(EV_TYPES).map(([k,v])=>`<option value="${k}" ${ui.feedType===k?"selected":""}>${v.label}</option>`).join("")}</select>
+       <select class="sel" id="feedType"><option value="all">All event types</option>${Object.entries(EV_TYPES).filter(([k])=>k===ui.feedType||S.events.some(e=>e.type===k)).map(([k,v])=>`<option value="${k}" ${ui.feedType===k?"selected":""}>${v.label}</option>`).join("")}</select>
      </div>
      <div class="feed" id="feed"></div>
    </section></div></div>`;
@@ -1701,7 +1556,415 @@ function renderActivity(){
   $("feedQ").oninput=e=>{ ui.feedQ=e.target.value; saveUI(); feedLimit=120; renderFeed(); };
   $("feedMember").onchange=e=>{ ui.feedMember=e.target.value; saveUI(); feedLimit=120; renderFeed(); };
   $("feedType").onchange=e=>{ ui.feedType=e.target.value; saveUI(); feedLimit=120; renderFeed(); };
+  $("rcRefresh").onclick=()=>rcFetch(true);
+  $("rcList").onclick=rcClick;
+  $("rcFilter").onclick=e=>{ const b=e.target.closest("button"); if(!b) return; ui.rcFilter=b.dataset.f; saveUI(); renderRecentActivity(); };
+  $("rcWho").onchange=e=>{ ui.rcWho=e.target.value; saveUI(); renderRecentActivity(); };
+  $("rcWin").onclick=e=>{ const b=e.target.closest("button"); if(!b||b.dataset.w===rcWinKey()) return;
+    const wider=rcWinMs(b.dataset.w)>rc.span; ui.rcWin=b.dataset.w; saveUI();
+    $("rcWin").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
+    renderRecentActivity(); if(wider) rcFetch(true); };   // a shorter window is already loaded; a longer one needs a fetch
+  renderRecentActivity(); rcFetch(false);
 }
+
+/* ---------- Recent activity: everything done in the project in the last 24 hours or 3 days ----------
+   Read live from GitHub or GitLab, refreshed every minute while the Activity tab is open and the page
+   is visible, and never saved. (GitHub without a token allows only 60 requests an hour, so there it
+   refreshes only when you click Refresh.) It can be narrowed to one member and one kind of activity.
+   GitLab sources, merged into one list:
+   - commits on every branch (with +/- stats; click one for its files and branches)
+   - the project's event stream: issues/MRs opened, closed, merged, branches created/deleted, wiki, etc.
+   - for every issue/MR updated in the window: its comments and system notes (assignee, title,
+     description, task ↔ story links, …) and its label/milestone changes, which GitLab keeps apart
+     from notes.
+   GitHub sources, merged the same way:
+   - commits on every branch (click one for its files, +/- stats and branches)
+   - for every issue/pull request updated in the window: when it was opened, its comments and its
+     timeline events (closed, reopened, merged, labels, milestone, assignees, title, sub-issues, …)
+   - the repository's event stream for the rest: branches and tags created/deleted, releases,
+     pull request reviews and review comments, wiki edits.
+   Per-item results are cached by updated_at, so only items that changed are re-read. */
+// time windows: [key, button label, hours, most issues/MRs whose notes are read]
+const RC_WINDOWS=[["24h","24 hours",24,30],["3d","3 days",72,60]];
+const RC_POLL=60e3;
+const rcWinKey=()=>RC_WINDOWS.some(w=>w[0]===ui.rcWin)?ui.rcWin:"24h";
+const rcWin=k=>RC_WINDOWS.find(w=>w[0]===(k||rcWinKey()));
+const rcWinMs=k=>rcWin(k)[2]*3600e3;
+const rcWinText=()=>({"24h":"the last 24 hours","3d":"the last 3 days"})[rcWinKey()];
+// span = how far back the loaded items reach; again = a forced check asked for while one was running;
+// conn = the project these items belong to (all of it is dropped when another project opens)
+const rcFresh=()=>({items:[], at:0, span:0, err:null, loading:false, again:false, open:new Set(), det:{}, known:null, fresh:new Set(), userOf:null, cache:{}, conn:null});
+let rc=rcFresh();
+const RC_FILTERS=[["all","All"],["commit","Commits"],["comment","Comments"],["change","Changes"],["item","Issues & MRs"]];
+// GitHub without a token: check once when the tab opens, then only when asked
+const rcAuto=()=>!(CONN&&CONN.provider==="github"&&!tokenInfo(CONN));
+const rcAgo=ts=>{ const s=Math.max(0,(Date.now()-new Date(ts))/1000); return s<60?"just now":s<3600?`${Math.floor(s/60)} min ago`:s<86400?`${Math.floor(s/3600)} h ago`:`${Math.floor(s/86400)} d ${Math.floor(s%86400/3600)} h ago`; };
+const rcWhoName=name=>(rc.userOf&&rc.userOf[(name||"").toLowerCase()])||name||"unknown";
+const rcUser=u=>u?(u.username||u.login||rcWhoName(u.name)):"unknown";
+const rcGH=()=>!!CONN&&CONN.provider==="github";
+const rcRef=t=>t?(t.type==="mr"&&!rcGH()?"!":"#")+t.iid:"";
+const rcUrl=(t,noteId)=>{
+  if(!t||!CONN||!S.project.url) return "";
+  if(rcGH()) return `${S.project.url}/${t.type==="mr"?"pull":"issues"}/${t.iid}${noteId?"#issuecomment-"+noteId:""}`;
+  return `${S.project.url}/-/${t.type==="mr"?"merge_requests":"issues"}/${t.iid}${noteId?"#note_"+noteId:""}`;
+};
+// label changes made together (same person, same second) read as one change: "added A, removed B"
+function rcLabelGroups(list,t,out){
+  const grp={};
+  list.forEach(l=>{ const k=`${l.who}@${(l.ts||"").slice(0,19)}`;
+    (grp[k]=grp[k]||{key:"l:"+l.id, kind:"change", ts:l.ts, who:l.who, target:t, add:[], rm:[]})[l.rm?"rm":"add"].push(l.name); });
+  Object.values(grp).forEach(g=>{ g.body=[g.add.length?`added label${g.add.length>1?"s":""} ${g.add.join(", ")}`:"",g.rm.length?`removed label${g.rm.length>1?"s":""} ${g.rm.join(", ")}`:""].filter(Boolean).join(" and "); out.push(g); });
+}
+
+/* ----- GitLab ----- */
+async function glTargetActivity(c,p,t){
+  // one issue or MR: its notes (comments + system notes) and its label / milestone changes
+  const base=`${p}/${t.type==="mr"?"merge_requests":"issues"}/${t.iid}`;
+  const [notes,labels,miles]=await Promise.all([
+    apiAll(c,base+"/notes",{sort:"desc",order_by:"created_at"},1).catch(()=>[]),
+    apiAll(c,base+"/resource_label_events",{},2).catch(()=>[]),
+    apiAll(c,base+"/resource_milestone_events",{},1).catch(()=>[])]);
+  const out=[];
+  notes.forEach(n=>out.push({key:"n:"+n.id, noteId:n.id, kind:n.system?"change":"comment", ts:n.created_at, who:rcUser(n.author), target:t, body:n.body||""}));
+  rcLabelGroups(labels.filter(l=>l.label).map(l=>({id:l.id, ts:l.created_at, who:rcUser(l.user), name:l.label.name, rm:l.action==="remove"})),t,out);
+  miles.forEach(m=>out.push({key:"m:"+m.id, kind:"change", ts:m.created_at, who:rcUser(m.user), target:t,
+    body:m.action==="remove"?`removed milestone ${m.milestone?.title||""}`:`set milestone ${m.milestone?.title||""}`}));
+  return out;
+}
+function glFromEvent(e,cut,noteIds){
+  const ts=e.created_at; if(new Date(ts)<cut) return null;
+  const who=rcUser(e.author), act=e.action_name||"", tt=e.target_type||"";
+  const tgt=(type,iid,title)=>iid?{type,iid,title:title||""}:null;
+  if(e.push_data){
+    const pd=e.push_data, ref=pd.ref||"";
+    if(pd.action==="removed") return {key:"e:"+e.id, kind:"item", icon:"issue_deleted", ts, who, body:`deleted ${pd.ref_type||"branch"} ${ref}`};
+    if(pd.action==="created") return {key:"e:"+e.id, kind:"item", icon:"status", ts, who, body:`created ${pd.ref_type||"branch"} ${ref}`};
+    return null;   // ordinary pushes: their commits are listed individually
+  }
+  if(/Note$/.test(tt)){
+    const nid=e.target_id; if(noteIds.has(nid)) return null;
+    const n=e.note||{}, nt=n.noteable_type==="MergeRequest"?"mr":n.noteable_type==="Issue"?"issue":null;
+    return {key:"n:"+nid, noteId:nid, kind:n.system?"change":"comment", ts, who, target:nt?tgt(nt,n.noteable_iid,e.target_title):null,
+      body:n.body||"", where:nt?null:(n.noteable_type||"").replace(/([a-z])([A-Z])/g,"$1 $2").toLowerCase()};
+  }
+  if(tt==="Issue"||tt==="MergeRequest"){
+    if(act==="updated") return null;   // the item's system notes say what was updated
+    const type=tt==="Issue"?"issue":"mr";
+    const icon=act==="closed"?"issue_closed":act==="reopened"?"issue_reopened":act==="opened"?"issue_created":act==="accepted"||act==="merged"?"mr_merged":"issue_updated";
+    return {key:"e:"+e.id, kind:"item", icon, ts, who, target:tgt(type,e.target_iid,e.target_title), body:act==="accepted"?"merged":act};
+  }
+  return {key:"e:"+e.id, kind:"item", icon:tt==="Milestone"?"milestone":"issue_updated", ts, who,
+    body:`${act} ${tt?tt.replace(/::.*$/,"").replace(/([a-z])([A-Z])/g,"$1 $2").toLowerCase()+" ":""}${e.target_title||""}`.trim()};
+}
+async function glRecent(c,cut,maxItems){
+  const R=rc;
+  const p=`/projects/${encodeURIComponent(c.project)}`, cutISO=cut.toISOString();
+  const after=new Date(cut.getTime()-DAY).toISOString().slice(0,10);   // the events API filters by date only (exclusive)
+  if(!R.userOf){ const mem=await apiAll(c,p+"/members/all",{},2).catch(()=>[]); R.userOf={}; mem.forEach(m=>{ R.userOf[(m.name||"").toLowerCase()]=m.username; }); }
+  // Commits per branch, not all:true. That would also return commits that are only held by
+  // GitLab's hidden keep-around refs, such as ones removed from a branch by a force-push.
+  const branchCommits=async()=>{
+    const br=await apiAll(c,p+"/repository/branches",{},2);
+    return (await Promise.all(br.map(b=>apiAll(c,p+"/repository/commits",{since:cutISO,ref_name:b.name,with_stats:true},3)))).flat();
+  };
+  const [commits,events,issues,mrs]=await Promise.all([
+    branchCommits(),
+    apiAll(c,p+"/events",{after,sort:"desc"},3).catch(()=>[]),
+    apiAll(c,p+"/issues",{updated_after:cutISO,scope:"all",order_by:"updated_at"},1).catch(()=>[]),
+    apiAll(c,p+"/merge_requests",{updated_after:cutISO,scope:"all",order_by:"updated_at"},1).catch(()=>[])]);
+  const targets=[...issues.map(i=>({type:"issue",iid:i.iid,title:i.title,upd:i.updated_at})),...mrs.map(m=>({type:"mr",iid:m.iid,title:m.title,upd:m.updated_at}))]
+    .sort((a,b)=>a.upd<b.upd?1:-1).slice(0,maxItems);
+  const cache={};
+  await Promise.all(targets.map(async t=>{ const k=`${t.type}${t.iid}@${t.upd}`; cache[k]=R.cache[k]||await glTargetActivity(c,p,t); }));
+  R.cache=cache;
+  const items=Object.values(cache).flat();
+  const noteIds=new Set(items.filter(x=>x.noteId).map(x=>x.noteId));
+  const bySha=new Map(); commits.forEach(x=>bySha.set(x.id,x));
+  bySha.forEach(x=>items.push({key:"c:"+x.id, kind:"commit", ts:x.committed_date||x.created_at, who:rcWhoName(x.author_name), commit:x}));
+  events.forEach(e=>{ const it=glFromEvent(e,cut,noteIds); if(it) items.push(it); });
+  return items;
+}
+async function glCommitDetails(c,x){
+  const p=`/projects/${encodeURIComponent(c.project)}/repository/commits/${encodeURIComponent(x.id)}`;
+  const [diff,refs]=await Promise.all([apiAll(c,p+"/diff",{},3), api(c,p+"/refs",{type:"branch",per_page:100}).catch(()=>[])]);
+  const files=diff.map(f=>{ let a=0,d=0;
+    (f.diff||"").split("\n").forEach(l=>{ if(l.startsWith("+")&&!l.startsWith("+++")) a++; else if(l.startsWith("-")&&!l.startsWith("---")) d++; });
+    return {new_path:f.new_path, old_path:f.old_path, new_file:f.new_file, deleted_file:f.deleted_file, renamed_file:f.renamed_file, a, d, big:!f.diff&&(f.too_large||f.collapsed)}; });
+  return {files, more:diff.length>=300, branches:refs.map(r=>r.name)};
+}
+
+/* ----- GitHub ----- */
+// issue / pull request timeline events, in words; null = not shown (comments and noise)
+const GH_SKIP=new Set(["subscribed","unsubscribed","mentioned","referenced","cross-referenced","commented","committed","comment_deleted",
+  "head_ref_deleted","head_ref_restored","head_ref_force_pushed","base_ref_changed","base_ref_force_pushed","deployed","deployment_environment_changed",
+  "automatic_base_change_succeeded","automatic_base_change_failed","added_to_merge_queue","removed_from_merge_queue","reviewed","review_dismissed","user_blocked"]);
+function ghEventText(e){
+  const who=u=>u?.login||"someone";
+  switch(e.event){
+    case "assigned": return `assigned ${who(e.assignee)}`;
+    case "unassigned": return `unassigned ${who(e.assignee)}`;
+    case "milestoned": return `set milestone ${e.milestone?.title||""}`;
+    case "demilestoned": return `removed milestone ${e.milestone?.title||""}`;
+    case "renamed": return `changed the title from “${e.rename?.from||""}” to “${e.rename?.to||""}”`;
+    case "review_requested": return `requested a review from ${e.requested_reviewer?.login||e.requested_team?.name||"someone"}`;
+    case "review_request_removed": return `removed the review request for ${e.requested_reviewer?.login||e.requested_team?.name||"someone"}`;
+    case "locked": return "locked the conversation";
+    case "unlocked": return "unlocked the conversation";
+    case "convert_to_draft": case "converted_to_draft": return "marked as draft";
+    case "ready_for_review": return "marked ready for review";
+    case "marked_as_duplicate": return "marked as a duplicate";
+    case "unmarked_as_duplicate": return "unmarked as a duplicate";
+    case "sub_issue_added": return "added a sub-issue";
+    case "sub_issue_removed": return "removed a sub-issue";
+    case "parent_issue_added": return "set the parent issue";
+    case "parent_issue_removed": return "removed the parent issue";
+    case "issue_type_added": return `set the type to ${e.issue_type?.name||""}`.trim();
+    case "issue_type_changed": return `changed the type to ${e.issue_type?.name||e.new_issue_type?.name||""}`.trim();
+    case "issue_type_removed": return "removed the type";
+    case "added_to_project": case "added_to_project_v2": return "added to a project board";
+    case "removed_from_project": case "removed_from_project_v2": return "removed from a project board";
+    case "moved_columns_in_project": return "moved to another column on the project board";
+    case "project_v2_item_status_changed": return "changed the status on the project board";
+    case "connected": return "linked a pull request or issue";
+    case "disconnected": return "unlinked a pull request or issue";
+    case "transferred": return "transferred this issue here";
+  }
+  return GH_SKIP.has(e.event) ? null : (e.event||"").replace(/_/g," ");
+}
+async function ghTargetActivity(c,r,t,since){
+  // one issue or pull request: when it was opened, its comments and its timeline events
+  const [comments,events]=await Promise.all([
+    apiAll(c,`${r}/issues/${t.iid}/comments`,{since},2).catch(()=>[]),
+    apiAll(c,`${r}/issues/${t.iid}/events`,{},3).catch(()=>[])]);
+  const out=[];
+  if(t.created) out.push({key:`o:${t.iid}`, kind:"item", icon:"issue_created", ts:t.created, who:t.author||"unknown", target:t, body:"opened"});
+  comments.forEach(n=>out.push({key:"n:"+n.id, noteId:n.id, kind:"comment", ts:n.created_at, who:rcUser(n.user), target:t, body:n.body||"", url:n.html_url}));
+  const merged=events.filter(e=>e.event==="merged").map(e=>new Date(e.created_at).getTime());
+  const labels=[];
+  events.forEach(e=>{
+    const ts=e.created_at, who=rcUser(e.actor);
+    if(e.event==="labeled"||e.event==="unlabeled") return labels.push({id:e.id, ts, who, name:e.label?.name||"", rm:e.event==="unlabeled"});
+    if(e.event==="closed"&&merged.some(m=>Math.abs(m-new Date(ts))<60e3)) return;   // a merged pull request also says "closed"
+    if(e.event==="closed"||e.event==="reopened"||e.event==="merged")
+      return out.push({key:"ie:"+e.id, kind:"item", icon:e.event==="closed"?"issue_closed":e.event==="reopened"?"issue_reopened":"mr_merged", ts, who, target:t, body:e.event});
+    const body=ghEventText(e); if(body) out.push({key:"ie:"+e.id, kind:"change", ts, who, target:t, body});
+  });
+  rcLabelGroups(labels,t,out);
+  return out;
+}
+function ghFromEvent(e,cut){
+  const ts=e.created_at; if(new Date(ts)<cut) return null;
+  const who=rcUser(e.actor), p=e.payload||{}, key="e:"+e.id;
+  const pr=x=>x?{type:"mr",iid:x.number,title:x.title||""}:null;
+  switch(e.type){
+    case "CreateEvent": return {key, kind:"item", icon:"status", ts, who, body:p.ref_type==="repository"?"created the repository":`created ${p.ref_type||"branch"} ${p.ref||""}`.trim()};
+    case "DeleteEvent": return {key, kind:"item", icon:"issue_deleted", ts, who, body:`deleted ${p.ref_type||"branch"} ${p.ref||""}`.trim()};
+    case "ReleaseEvent": return {key, kind:"item", icon:"milestone", ts, who, body:`${p.action||"published"} release ${p.release?.name||p.release?.tag_name||""}`.trim(), url:p.release?.html_url};
+    case "PullRequestReviewEvent": {
+      const st=(p.review?.state||"").toLowerCase(), body=(p.review?.body||"").trim();
+      if(body) return {key:"rv:"+p.review.id, kind:"comment", ts, who, target:pr(p.pull_request), body:(st==="approved"?"Approved: ":st==="changes_requested"?"Requested changes: ":"")+body, url:p.review.html_url};
+      return {key:"rv:"+(p.review?.id||e.id), kind:"item", icon:"status", ts, who, target:pr(p.pull_request), body:st==="approved"?"approved":st==="changes_requested"?"requested changes on":"reviewed", url:p.review?.html_url};
+    }
+    case "PullRequestReviewCommentEvent": return {key:"rc:"+p.comment?.id, kind:"comment", ts, who, target:pr(p.pull_request), body:p.comment?.body||"", url:p.comment?.html_url};
+    case "IssueCommentEvent": {   // usually already read from the item itself (same key); this catches items past the per-window limit
+      const i=p.issue; if(!i||p.action!=="created") return null;
+      return {key:"n:"+p.comment?.id, noteId:p.comment?.id, kind:"comment", ts, who, target:{type:i.pull_request?"mr":"issue",iid:i.number,title:i.title||""}, body:p.comment?.body||"", url:p.comment?.html_url};
+    }
+    case "CommitCommentEvent": return {key:"cc:"+p.comment?.id, kind:"comment", ts, who, where:"commit", body:p.comment?.body||"", url:p.comment?.html_url};
+    case "GollumEvent": return {key, kind:"item", icon:"issue_updated", ts, who, body:(p.pages||[]).map(g=>`${g.action} wiki page ${g.title}`).join(", ")||"edited the wiki"};
+    case "MemberEvent": return {key, kind:"item", icon:"status", ts, who, body:`${p.action||"added"} member ${p.member?.login||""}`.trim()};
+    case "ForkEvent": return {key, kind:"item", icon:"status", ts, who, body:"forked the repository"};
+    case "PublicEvent": return {key, kind:"item", icon:"status", ts, who, body:"made the repository public"};
+  }
+  return null;   // pushes (commits are listed individually); issues and PRs opened/closed/merged (read from each item)
+}
+async function ghRecent(c,cut,maxItems){
+  const R=rc;
+  const r=`/repos/${c.project}`, cutISO=cut.toISOString();
+  // comments are read for the longest window, so a cached item stays right when the window changes
+  const since=new Date(Date.now()-Math.max(...RC_WINDOWS.map(w=>w[2]))*3600e3-DAY).toISOString();
+  const branchCommits=async()=>{
+    const br=await apiAll(c,r+"/branches",{},2);
+    return (await Promise.all(br.map(b=>apiAll(c,r+"/commits",{sha:b.name,since:cutISO},3).then(l=>l.map(x=>[x,b.name])).catch(()=>[])))).flat();
+  };
+  const [commits,events,issues]=await Promise.all([
+    branchCommits(),
+    apiAll(c,r+"/events",{},3).catch(()=>[]),
+    apiAll(c,r+"/issues",{since:cutISO,state:"all",sort:"updated",direction:"desc"},1).catch(()=>[])]);
+  const targets=issues.map(i=>({type:i.pull_request?"mr":"issue", iid:i.number, title:i.title, upd:i.updated_at, created:i.created_at, author:rcUser(i.user)})).slice(0,maxItems);
+  const cache={};
+  await Promise.all(targets.map(async t=>{ const k=`${t.type}${t.iid}@${t.upd}`; cache[k]=R.cache[k]||await ghTargetActivity(c,r,t,since); }));
+  R.cache=cache;
+  const items=Object.values(cache).flat();
+  // one entry per commit, with every branch it was found on
+  const bySha=new Map();
+  commits.forEach(([x,branch])=>{
+    const had=bySha.get(x.sha); if(had){ had.branches.push(branch); return; }
+    const old=R.items.find(i=>i.commit&&i.commit.id===x.sha);    // keep stats loaded earlier
+    bySha.set(x.sha,{id:x.sha, short_id:x.sha.slice(0,7), title:(x.commit.message||"").split("\n")[0], message:x.commit.message||"",
+      author_name:x.commit.author?.name||x.author?.login||"", login:x.author?.login||null, authored_date:x.commit.author?.date,
+      committer_name:x.commit.committer?.name||"", committed_date:x.commit.committer?.date, parent_ids:(x.parents||[]).map(p=>p.sha),
+      web_url:x.html_url, stats:old?.commit?.stats||null, branches:[branch]});
+  });
+  bySha.forEach(x=>items.push({key:"c:"+x.id, kind:"commit", ts:x.committed_date||x.authored_date, who:x.login||x.author_name||"unknown", commit:x}));
+  events.forEach(e=>{ const it=ghFromEvent(e,cut); if(it) items.push(it); });
+  return items;
+}
+async function ghCommitDetails(c,x){
+  const d=await api(c,`/repos/${c.project}/commits/${encodeURIComponent(x.id)}`);
+  if(d.stats) x.stats={additions:d.stats.additions, deletions:d.stats.deletions};
+  const files=(d.files||[]).map(f=>({new_path:f.filename, old_path:f.previous_filename||f.filename, new_file:f.status==="added", deleted_file:f.status==="removed",
+    renamed_file:f.status==="renamed", a:f.additions||0, d:f.deletions||0, big:false}));
+  return {files, more:files.length>=300, branches:x.branches||[]};
+}
+
+/* ----- shared ----- */
+// the demo's events from the window, in the shape the live fetchers produce
+function demoRecent(cut){
+  const now=Date.now();
+  return S.events.filter(e=>{ const d=new Date(e.ts); return d>=cut&&d<=now; }).map(e=>{
+    const i=e.issue?byId(e.issue):null, t=i?{type:"issue",iid:i.id,title:i.title}:null, x={key:"d:"+e.id, ts:e.ts, who:e.actor};
+    if(e.type==="commit"){
+      const c={id:e.meta.sha, short_id:e.meta.sha, title:e.text, message:e.text, author_name:e.actor, login:e.actor,
+        authored_date:e.ts, committed_date:e.ts, parent_ids:[], branches:[e.meta.branch]};
+      rc.det[c.id]=rc.det[c.id]||{files:[], more:false, branches:[e.meta.branch]};
+      return Object.assign(x,{kind:"commit", commit:c});
+    }
+    if(e.type==="comment") return Object.assign(x,{kind:"comment", target:t, body:(e.text.match(/: "(.*)"$/)||[,e.text])[1]});
+    if(e.type==="status"&&i) return Object.assign(x,{kind:"change", target:t, body:e.text.replace(` #${i.id} ${i.title}`,"")});
+    if(e.type==="issue_updated"||e.type==="deadline") return Object.assign(x,{kind:"change", body:e.text});
+    if((e.type==="issue_created"||e.type==="issue_closed")&&i) return Object.assign(x,{kind:"item", icon:e.type, target:t, body:e.type==="issue_created"?"opened":"closed"});
+    return Object.assign(x,{kind:"item", icon:e.type, body:e.text});
+  });
+}
+async function rcFetch(force){
+  if(rc.loading){ if(force) rc.again=true; return; }
+  const c=CONN;
+  if(!c){   // the demo: its own recent events, shown the same way
+    if(rc.conn!=="demo"){ rc=rcFresh(); rc.conn="demo"; }
+    rc.items=demoRecent(new Date(Date.now()-rcWinMs())); rc.span=rcWinMs(); rc.at=Date.now(); rc.err=null;
+    renderRecentActivity(); return;
+  }
+  if(rc.conn!==connKey(c)){ rc=rcFresh(); rc.conn=connKey(c); }
+  if(!force&&Date.now()-rc.at<RC_POLL-5e3) return;
+  if(!force&&rc.at&&!rcAuto()) return;
+  rc.loading=true; renderRecentActivity();
+  const span=rcWinMs(), [, , , maxItems]=rcWin(), mine=rc;
+  try{
+    const cut=new Date(Date.now()-span);
+    let items=await (c.provider==="github"?ghRecent:glRecent)(c,cut,maxItems);
+    if(rc!==mine) return;        // another project was opened meanwhile
+    const seen=new Set();
+    items=items.filter(x=>new Date(x.ts)>=cut&&!seen.has(x.key)&&seen.add(x.key)).sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+    // highlight what appeared since the last check (not on the first load, and not older items
+    // that only showed up because the window got longer)
+    rc.fresh=rc.known&&span<=rc.span?new Set(items.filter(x=>!rc.known.has(x.key)).map(x=>x.key)):new Set();
+    rc.known=new Set(items.map(x=>x.key));
+    rc.items=items; rc.span=span; rc.err=null;
+  }catch(e){ if(rc===mine) rc.err=e.message; }
+  finally{ mine.at=Date.now(); mine.loading=false; if(rc===mine){ renderRecentActivity(); if(rc.again){ rc.again=false; rcFetch(true); } } }
+}
+const rcIcon=x=>x.kind==="commit"?"commit":x.kind==="comment"?"comment":x.kind==="change"?"issue_updated":x.icon||"issue_updated";
+const rcColor=x=>x.kind==="commit"?"var(--muted)":x.kind==="comment"?"var(--accent)":x.kind==="change"?"#58a6ff":(EV_TYPES[x.icon]||{}).color||"var(--muted)";
+const rcOneLine=s=>(s||"").replace(/\s+/g," ").trim();
+function rcSummary(x){
+  const on=x.target?` ${rcRef(x.target)} ${x.target.title}`:x.where?` a ${x.where}`:"";
+  if(x.kind==="commit") return `${x.commit.short_id} ${x.commit.title}`;
+  if(x.kind==="comment") return `commented on${on}: “${rcOneLine(x.body)}”`;
+  if(x.kind==="change") return `${rcOneLine(x.body)}${x.target?` · ${rcRef(x.target)} ${x.target.title}`:""}`;
+  return `${x.body}${x.target?` ${rcRef(x.target)} ${x.target.title}`:""}`;
+}
+function renderRecentActivity(){
+  const el=$("rcList"), live=$("rcLive"), seg=$("rcFilter"), whoSel=$("rcWho"); if(!el||!live) return;
+  const P=provName(CONN), auto=rcAuto();
+  const cut=Date.now()-rcWinMs(), inWin=rc.items.filter(x=>new Date(x.ts)>=cut), f=ui.rcFilter||"all", win=rcWinText();
+  // member list: the team plus anyone else who shows up in the window
+  const people=[...new Set([...PEOPLE,...inWin.map(x=>x.who)])].filter(p=>p&&p!=="unknown");
+  const who=ui.rcWho==="all"||people.includes(ui.rcWho)?ui.rcWho:"all";
+  if(whoSel){ const cnt=p=>inWin.filter(x=>x.who===p).length;
+    whoSel.innerHTML=`<option value="all">All members${rc.at&&!rc.err?` (${inWin.length})`:""}</option>`+people.sort((a,b)=>cnt(b)-cnt(a)||a.localeCompare(b)).map(p=>`<option value="${esc(p)}"${who===p?" selected":""}>${esc(p)}${rc.at&&!rc.err?` (${cnt(p)})`:""}</option>`).join(""); }
+  const all=who==="all"?inWin:inWin.filter(x=>x.who===who);
+  const list=f==="all"?all:all.filter(x=>x.kind===f);
+  if(seg) seg.innerHTML=RC_FILTERS.map(([k,l])=>{ const n=k==="all"?all.length:all.filter(x=>x.kind===k).length; return `<button data-f="${k}" class="${f===k?"active":""}">${k==="item"&&rcGH()?"Issues & PRs":l}${rc.at&&!rc.err?` <span style="opacity:.7">${n}</span>`:""}</button>`; }).join("");
+  if($("rcSub")) $("rcSub").textContent=`${win[0].toUpperCase()+win.slice(1)} · ${who==="all"?`everything the team did${CONN?" in "+P:" in the demo project"}`:"by "+who}`;
+  const loadingMore=rc.loading&&rc.span<rcWinMs();
+  const checked=rc.at?new Date(rc.at).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}):"";
+  live.className="rc-live"+(!CONN||(!auto&&!rc.loading)?" off":rc.err?" err":"");
+  live.innerHTML=`<i></i>${!CONN?"Demo · sample activity":rc.loading?`Checking ${P}…`:rc.err?"Couldn't refresh":auto?`Live · checked ${checked}`:`Checked ${checked} · Refresh to check again`}`;
+  if(rc.err) live.title=rc.err; else live.title=!CONN?"Sample activity from the demo project. Connect a project (••• → Connect a project…) to see your team's, live.":auto?"":"Without a token GitHub allows only 60 requests an hour, so this refreshes only when you click Refresh. Add a token (••• → Connect a project… → Edit) to keep it live.";
+  if(!list.length){ el.innerHTML=`<div class="empty">${!rc.at||loadingMore?"Loading activity…":rc.err&&!all.length?esc(rc.err)
+    :`${f==="all"?"Nothing":"Nothing of this kind"} ${who==="all"?`done in ${P}`:"by "+esc(who)} in ${win}.`}</div>`; return; }
+  const keepScroll=el.scrollTop;
+  el.innerHTML=list.map(x=>{
+    const open=rc.open.has(x.key), st=x.commit&&x.commit.stats;
+    return `<div class="rc${open?" open":""}${rc.fresh.has(x.key)?" new":""}" data-key="${esc(x.key)}">
+      <button class="rc-row" data-rc-toggle aria-expanded="${open}"><span class="chev">▼</span><span class="rc-ico" style="color:${rcColor(x)}">${icon(rcIcon(x),13)}</span>${avatar(x.who)}<span class="who" style="color:${mc(x.who)}">${esc(x.who)}</span>
+        <span class="rc-title" title="${esc(rcSummary(x))}">${esc(rcSummary(x))}</span>
+        ${st?`<span class="rc-stat"><span class="a">+${st.additions}</span> <span class="d">−${st.deletions}</span></span>`:""}
+        <span class="rc-ago" title="${esc(new Date(x.ts).toLocaleString())}">${rcAgo(x.ts)}</span></button>
+      ${open?`<div class="rc-det">${x.kind==="commit"?rcCommitDetails(x.commit):rcDetails(x)}</div>`:""}</div>`;
+  }).join("");
+  el.scrollTop=keepScroll;
+  // the "new" flash plays once; later re-renders shouldn't replay it
+  if(rc.fresh.size){ clearTimeout(rc._freshT); rc._freshT=setTimeout(()=>rc.fresh.clear(),1700); }
+}
+const rcWhen=v=>v?new Date(v).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"—";
+// a link to the item: opens it in the dashboard when it's a known issue, else on GitHub/GitLab
+const rcTargetHTML=t=>!t?"—":t.type==="issue"&&byId(t.iid)?`<span class="ref" data-open="${t.iid}">#${t.iid}</span> ${esc(t.title)}`:`<a href="${esc(rcUrl(t))}" target="_blank" rel="noopener">${rcRef(t)}</a> ${esc(t.title)}`;
+function rcDetails(x){
+  const what={comment:"Comment",change:"Change"}[x.kind]||"Activity";
+  const link=x.url||rcUrl(x.target,x.noteId);
+  let h="";
+  if(x.kind==="comment"||x.kind==="change") h+=`<pre>${linkRefs(x.body)}</pre>`;
+  h+=`<div class="rc-kv">
+    <span>Type</span><b>${what}${x.kind==="item"?` · ${esc(x.body)}`:""}</b>
+    <span>By</span><b>${esc(x.who)}</b>
+    <span>When</span><b>${rcWhen(x.ts)}</b>
+    ${x.target?`<span>${x.target.type==="mr"?(rcGH()?"Pull request":"Merge request"):"Issue"}</span><b>${rcTargetHTML(x.target)}</b>`:""}
+    ${x.target&&x.target.type==="issue"&&byId(x.target.iid)?`<span>Status</span><b>${esc((ST[byId(x.target.iid).status]||{}).label||"")}${byId(x.target.iid).assignee?` · ${esc(byId(x.target.iid).assignee)}`:""}</b>`:""}
+  </div>`;
+  if(link) h+=`<div><a href="${esc(link)}" target="_blank" rel="noopener">Open in ${provName(CONN)} ↗</a></div>`;
+  return h;
+}
+function rcCommitDetails(x){
+  const d=rc.det[x.id], body=(x.message||x.title||"").trim(), login=x.login||rcWhoName(x.author_name);
+  let h=`<pre>${linkRefs(body)}</pre><div class="rc-kv">
+    <span>Author</span><b>${esc(x.author_name||"")}${login&&login!==x.author_name?` (${esc(login)})`:""}</b>
+    <span>Authored</span><b>${rcWhen(x.authored_date)}</b>
+    ${x.committer_name&&(x.committer_name!==x.author_name||x.committed_date!==x.authored_date)?`<span>Committed</span><b>${esc(x.committer_name)} · ${rcWhen(x.committed_date)}</b>`:""}
+    <span>Commit</span><b><code>${esc(x.id)}</code></b>
+    ${(x.parent_ids||[]).length>1?`<span>Type</span><b>Merge commit (${x.parent_ids.length} parents)</b>`:""}
+    <span>Branches</span><b>${!d?"…":d.err?`<span style="color:var(--faint)">couldn't load</span>`:d.branches.length?d.branches.map(b=>`<code>${esc(b)}</code>`).join(" "):"—"}</b>
+    ${x.stats?`<span>Changes</span><b><span style="color:var(--ok)">+${x.stats.additions}</span> / <span style="color:var(--danger)">−${x.stats.deletions}</span>${d&&d.files?` in ${d.files.length}${d.more?"+":""} file${d.files.length===1?"":"s"}`:""}</b>`:""}
+  </div>`;
+  if(!d) h+=`<div class="hint">Loading files…</div>`;
+  else if(d.err) h+=`<div class="hint">Couldn't load the files changed: ${esc(d.err)}</div>`;
+  else if(d.files.length){
+    const tag=f=>f.new_file?["added","var(--ok)"]:f.deleted_file?["deleted","var(--danger)"]:f.renamed_file?["renamed","var(--warn)"]:null;
+    h+=`<ul class="rc-files">${d.files.map(f=>{ const t=tag(f), path=f.renamed_file?f.old_path+" → "+f.new_path:f.new_path;
+      return `<li>${t?`<span class="tag" style="color:${t[1]}">${t[0]}</span>`:""}<span class="p" title="${esc(path)}">${esc(path)}</span>${f.big?`<span class="hint">too large to count</span>`:`<span class="a">+${f.a}</span><span class="d">−${f.d}</span>`}</li>`; }).join("")}</ul>`;
+  }
+  if(x.web_url) h+=`<div><a href="${esc(x.web_url)}" target="_blank" rel="noopener">Open this commit in ${provName(CONN)} ↗</a></div>`;
+  return h;
+}
+async function rcLoadCommit(x){
+  if(rc.det[x.id]||!CONN) return;
+  const mine=rc;
+  try{ mine.det[x.id]=await (CONN.provider==="github"?ghCommitDetails:glCommitDetails)(CONN,x); }
+  catch(e){ mine.det[x.id]={err:e.message}; }
+  if(rc===mine) renderRecentActivity();
+}
+function rcClick(e){
+  if(e.target.closest("[data-open]")||e.target.closest("a")) return;   // issue links and GitHub/GitLab links keep their own behaviour
+  if(!e.target.closest("[data-rc-toggle]")) return;
+  const key=e.target.closest(".rc").dataset.key, x=rc.items.find(i=>i.key===key);
+  rc.fresh.delete(key);
+  if(rc.open.has(key)) rc.open.delete(key); else { rc.open.add(key); if(x&&x.commit) rcLoadCommit(x.commit); }
+  renderRecentActivity();
+}
+// poll while the Activity tab is open and the page is visible; check right away when it becomes visible again
+setInterval(()=>{ if(ui.view==="activity"&&!document.hidden) rcFetch(false); },15e3);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&ui.view==="activity") rcFetch(false); });
 function streak(p){ const days=new Set(S.events.filter(e=>e.actor===p).map(e=>e.ts.slice(0,10))); let n=0, d=today(); if(!days.has(d)) d=addD(d,-1); while(days.has(d)){ n++; d=addD(d,-1); } return n; }
 let feedLimit=120;
 function renderFeed(){
@@ -1725,7 +1988,7 @@ function evHTML(e){
   const body = e.type==="commit"
     ? `<span class="who" style="color:${mc(e.actor)}">${esc(e.actor)}</span> pushed to <code>${esc(e.meta.branch)}</code><div><code>${esc(e.meta.sha)}</code> ${linkRefs(e.text)}</div>`
     : `<span class="who" style="color:${mc(e.actor)}">${esc(e.actor)}</span> ${linkRefs(e.text)}`;
-  return `<div class="ev${e.user&&Date.now()-new Date(e.ts)<4000?" new":""}"><span class="ico" style="color:${T.color}">${icon(e.type)}</span><div class="body">${body}<div class="meta">${T.label}${e.user?" · edited in dashboard":""}</div></div><span class="time" title="${esc(e.ts.replace("T"," "))}">${ui.view==="activity"?time:fmt(e.ts.slice(0,10))+" "+time}</span></div>`;
+  return `<div class="ev"><span class="ico" style="color:${T.color}">${icon(e.type)}</span><div class="body">${body}<div class="meta">${T.label}</div></div><span class="time" title="${esc(e.ts.replace("T"," "))}">${ui.view==="activity"?time:fmt(e.ts.slice(0,10))+" "+time}</span></div>`;
 }
 document.addEventListener("click",e=>{ const r=e.target.closest("[data-open]"); if(r){ closeOverlays(); openIssue(+r.dataset.open); } });
 
@@ -1755,14 +2018,16 @@ function renderBoard(){
   let h=`<div class="toolbar">
      <select class="sel" id="bMs"><option value="all">All milestones</option><option value="sprint" ${ui.boardMs==="sprint"?"selected":""}>Current sprint${cur?` (Sprint ${cur.n})`:""}</option>${S.milestones.map(m=>`<option value="${m.id}" ${String(ui.boardMs)===String(m.id)?"selected":""}>${esc(m.title)}</option>`).join("")}</select>
      <select class="sel" id="bWho"><option value="all">Everyone</option>${ASSIGNEES.map(a=>`<option ${ui.boardWho===a?"selected":""}>${a}</option>`).join("")}</select>
-     <span class="hint">${list.length} issues · ${spSum(list)} SP · drag cards between columns to change status</span></div>
-   <div class="pane"><div class="board">`;
+     <span class="hint">${list.length} issues · ${spSum(list)} SP · click a card for details · drag a column's right edge to widen it (double-click to reset)</span>
+     ${Object.keys(ui.boardW||{}).length?`<button class="btn sm" id="bResetW" title="Put every column back to its normal width">Reset widths</button>`:""}</div>
+   <div class="pane"><div class="board" id="board">`;
   for(const [key,label,color] of STATUSES){
     const col=list.filter(i=>i.status===key).sort((a,b)=>a.end<b.end?-1:a.end>b.end?1:a.id-b.id);
-    h+=`<div class="bcol"><h3><span style="color:${color}">●</span>${label}<span class="pill" style="margin-left:auto">${spSum(col)} SP</span><span class="cnt" style="margin-left:0">${col.length}</span></h3><div class="list" data-col="${key}">`;
+    const w=(ui.boardW||{})[key];
+    h+=`<div class="bcol" data-col="${key}"${w?` style="width:${w}px"`:""}><span class="bcol-rs" data-rs="${key}" title="Drag to resize · double-click to reset"></span><h3><span style="color:${color}">●</span>${label}<span class="pill" style="margin-left:auto">${spSum(col)} SP</span><span class="cnt" style="margin-left:0">${col.length}</span></h3><div class="list" data-col="${key}">`;
     if(!col.length) h+=`<div class="empty" style="padding:16px;font-size:12px">No issues</div>`;
     for(const i of col){ const ms=msById(i.ms);
-      h+=`<div class="kcard" draggable="true" data-id="${i.id}" style="border-left-color:${mc(i.assignee)}">
+      h+=`<div class="kcard" data-id="${i.id}" style="border-left-color:${mc(i.assignee)}">
         <div class="ctop">${issueIcon(i)}<span>#${i.id}</span>${kindTag(i)}<span class="pill" style="color:${ms.color};border-color:color-mix(in srgb,${ms.color} 45%,transparent)">M${i.ms}</span>${i.tbd?`<span style="color:var(--warn);font-weight:600">TBD</span>`:""}${isLate(i)?`<span style="color:var(--danger);font-weight:600">Overdue</span>`:""}<span style="margin-left:auto">${spBadge(i)}</span></div>
         <div class="cname" title="${esc(i.title)}">${esc(shortTitle(i))}${i.parent?` <span class="sub-of">↳ #${i.parent}</span>`:""}</div>
         <div class="cbot">${avatar(i.assignee)}${esc(i.assignee)}${i.labels.slice(0,2).map(labelHTML).join("")}<span style="margin-left:auto;color:var(--faint)" title="Due">${fmt(i.end)}</span></div></div>`; }
@@ -1772,17 +2037,30 @@ function renderBoard(){
   document.querySelector(".pane").scrollLeft=sl;
   $("bMs").onchange=e=>{ ui.boardMs=e.target.value; saveUI(); renderBoard(); };
   $("bWho").onchange=e=>{ ui.boardWho=e.target.value; saveUI(); renderBoard(); };
-  let dragId=null;
-  view.querySelectorAll(".kcard").forEach(c=>{
-    c.addEventListener("dragstart",e=>{ dragId=+c.dataset.id; c.classList.add("drag"); e.dataTransfer.effectAllowed="move"; e.dataTransfer.setData("text/plain",c.dataset.id); });
-    c.addEventListener("dragend",()=>c.classList.remove("drag"));
-    c.addEventListener("click",()=>openIssue(+c.dataset.id));
-  });
-  view.querySelectorAll(".list").forEach(l=>{
-    l.addEventListener("dragover",e=>{ e.preventDefault(); l.classList.add("dragover"); });
-    l.addEventListener("dragleave",()=>l.classList.remove("dragover"));
-    l.addEventListener("drop",e=>{ e.preventDefault(); l.classList.remove("dragover"); const i=byId(dragId); if(i&&i.status!==l.dataset.col){ setStatus(i,l.dataset.col); renderBoard(); toast(`#${i.id} → ${ST[i.status].label} · remember to Save`); } });
-  });
+  if($("bResetW")) $("bResetW").onclick=()=>{ ui.boardW={}; saveUI(); renderBoard(); };
+  view.querySelectorAll(".kcard").forEach(c=>c.addEventListener("click",()=>openIssue(+c.dataset.id)));
+  const board=$("board");
+  board.addEventListener("pointerdown",boardResizeDown);
+  board.addEventListener("dblclick",e=>{ const rs=e.target.closest("[data-rs]"); if(!rs) return; e.preventDefault();
+    const w=Object.assign({},ui.boardW); delete w[rs.dataset.rs]; ui.boardW=w; saveUI(); renderBoard(); });
+}
+/* ---------- resizable board columns (same idea as the Gantt's name column) ---------- */
+const BCOL_MIN=200, BCOL_DEFAULT=280;
+const bcolMax=()=>Math.max(BCOL_MIN,Math.min(1200,window.innerWidth-80));
+function boardResizeDown(e){
+  const rs=e.target.closest("[data-rs]"); if(!rs||e.button!==0) return;
+  e.preventDefault();
+  const col=rs.parentElement, board=$("board"), key=rs.dataset.rs, x0=e.clientX, w0=col.getBoundingClientRect().width;
+  let w=w0;
+  board.classList.add("resizing"); rs.classList.add("on");
+  const move=ev=>{ w=Math.round(Math.min(bcolMax(),Math.max(BCOL_MIN,w0+ev.clientX-x0))); col.style.width=w+"px"; };
+  const up=()=>{ window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up);
+    board.classList.remove("resizing"); rs.classList.remove("on");
+    if(Math.abs(w-w0)<2) return;
+    const all=Object.assign({},ui.boardW); if(w===BCOL_DEFAULT) delete all[key]; else all[key]=w; ui.boardW=all; saveUI();
+    // show or hide the "Reset widths" button without losing the scroll position
+    if(!!$("bResetW")!==!!Object.keys(all).length) renderBoard(); };
+  window.addEventListener("pointermove",move); window.addEventListener("pointerup",up);
 }
 
 /* =====================================================================
@@ -1816,7 +2094,7 @@ function renderAnalytics(){
       <section class="card-p"><div class="card-h"><h3>Workload by member</h3><span class="sub">Story points by state</span></div><div class="chart" style="padding:12px 14px">${workload(memRows)}</div></section>
       <section class="card-p"><div class="card-h"><h3>Issue status</h3><span class="sub">${S.issues.length} issues</span></div><div class="chart" style="padding:12px 14px">${statusDist()}</div></section>
     </div>
-    <section class="card-p"><div class="card-h"><h3>Member contributions</h3><span class="sub">Since Sep 1, 2026</span></div><div style="overflow-x:auto">
+    <section class="card-p"><div class="card-h"><h3>Member contributions</h3><span class="sub">Since ${fmt(S.sprints[0].start)}, ${S.sprints[0].start.slice(0,4)}</span></div><div style="overflow-x:auto">
       <table class="tbl"><thead><tr><th>Member</th><th class="n">Issues</th><th class="n">Closed</th><th class="n">SP delivered</th><th class="n">SP in progress</th><th class="n">SP open</th><th class="n">Commits</th><th class="n">MRs merged</th><th class="n">Comments</th><th class="n">On time</th></tr></thead>
       <tbody>${memRows.map(r=>`<tr><td><span style="display:inline-flex;align-items:center;gap:8px">${avatar(r.p)}<b>${r.p}</b></span></td><td class="n">${r.issues}</td><td class="n">${r.done}</td><td class="n"><b>${r.spDone}</b></td><td class="n">${r.active}</td><td class="n">${r.spOpen}</td><td class="n">${r.p==="Team"?"—":r.commits}</td><td class="n">${r.p==="Team"?"—":r.mrs}</td><td class="n">${r.p==="Team"?"—":r.comments}</td><td class="n">${r.onTime==null?"—":r.onTime+"%"}</td></tr>`).join("")}</tbody></table></div></section>
   </div></div>`;
@@ -1908,81 +2186,59 @@ function statusDist(){
    ===================================================================== */
 function applyTheme(){ const th=ui.theme||"dark"; document.documentElement.dataset.theme=th; }
 document.getElementById("tabs").onclick=e=>{ const b=e.target.closest(".tab"); if(!b) return; ui.view=b.dataset.view; saveUI(); render(); };
-$("viewer").onchange=e=>{ ui.viewer=e.target.value; saveUI(); toast(`Edits will be recorded as ${esc(ui.viewer)}`); };
 document.querySelector(".menu-pop").addEventListener("click",e=>{ if(e.target.closest("button")) e.currentTarget.closest("details").open=false; });
 document.addEventListener("click",e=>{ const m=document.querySelector("details.menu"); if(m.open&&!e.target.closest("details.menu")) m.open=false; });
-$("btnSave").onclick=persist;
-$("mSave").onclick=saveIssue; $("mDelete").onclick=deleteIssue; $("sSave").onclick=saveSprint;
-$("fMs").onchange=e=>fillObj(e.target.value,null);
-$("fStart").onchange=()=>{ if($("fEnd").value<$("fStart").value) $("fEnd").value=$("fStart").value; sprintHint(); };
 document.querySelectorAll("[data-close]").forEach(b=>b.onclick=closeOverlays);
 document.querySelectorAll(".overlay").forEach(o=>o.addEventListener("mousedown",e=>{ if(e.target===o) closeOverlays(); }));
-document.addEventListener("keydown",e=>{
-  if(e.key==="Escape") closeOverlays();
-  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){ e.preventDefault(); persist(); }
-});
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeOverlays(); });
 $("btnTheme").onclick=()=>{ ui.theme=document.documentElement.dataset.theme==="light"?"dark":"light"; saveUI(); applyTheme(); };
 $("btnExport").onclick=()=>{ const blob=new Blob([JSON.stringify(S,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`project-dashboard-${iso(new Date())}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); };
-$("btnImport").onclick=()=>$("fileIn").click();
-$("fileIn").onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader();
-  r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.issues||!d.milestones||!d.sprints) throw new Error("missing issues, milestones or sprints"); S=d; applyMembers(); markDirty(); render(); toast("Imported · click Save to keep"); }catch(err){ alert("Could not import: "+err.message); } };
-  r.readAsText(f); e.target.value=""; };
-$("btnClear").onclick=()=>{
-  if(!confirm("Clear ALL data?\n\nThis removes every issue, objective, milestone and activity event so you can start from a blank project. The 2-week sprint calendar is kept.\n\nTip: use Export JSON first if you want a backup. You can bring the mock data back with Reset to mock data.")) return;
-  S={asOf:iso(new Date()), source:"empty", project:S.project, members:S.members, milestones:[], objectives:[], sprints:S.sprints, issues:[], events:[], nextEventId:1};
-  ui.q=""; ui.hidden=[]; ui.hmDay=null; ui.collapsed=[]; ui.boardMs="all"; saveUI();
-  persist(); status("Blank project"); render(); toast("All data cleared");
-};
 $("btnReset").onclick=async()=>{
-  const c=activeConn();
-  if(!confirm(c ? `Discard local changes and reload the latest data from ${PROVIDER_NAME[c.provider]}?` : "Discard all local changes and reload the original mock data?")) return;
-  try{ localStorage.removeItem(dataKey()); }catch(e){}
-  try{ await openProject(c,true); }catch(err){ status(); openConnect(c,err.message); }
+  const b=$("btnReset"); b.disabled=true;
+  try{ await openProject(CONN); if(ui.view==="activity") rcFetch(true); toast(CONN?`✓ Up to date with ${provName(CONN)}`:"✓ Demo reloaded"); }
+  catch(err){ status(); openConnect(CONN,err.message); }
+  finally{ b.disabled=false; }
 };
-window.addEventListener("beforeunload",e=>{ if(dirty){ e.preventDefault(); e.returnValue=""; } });
 
-/* ---------- switching projects ---------- */
-// Opens a project (c = null for the demo). Uses this browser's saved copy unless `fresh`, otherwise fetches it.
-async function openProject(c,fresh){
-  const saved=fresh?null:readJSON(dataKeyFor(c));
-  let data=saved&&saved.issues?saved:null;
-  if(!data){
-    if(c) $("statusLine").innerHTML=`Loading ${esc(c.name)} from ${PROVIDER_NAME[c.provider]}…`;
-    data=await fetchProject(c);
-  }
-  const switching=(c?connKey(c):null)!==conns.active;
-  conns.active=c?connKey(c):null;
+/* ---------- opening a project ---------- */
+// Always reads the project straight from GitHub/GitLab (c = null: the demo). The dashboard keeps no copy
+// of its own, so what's on screen is what's on GitHub or GitLab.
+async function openProject(c){
+  const time=()=>new Date().toLocaleString([], {month:"short", day:"numeric", hour:"numeric", minute:"2-digit"});
+  if(c) $("statusLine").innerHTML=`Loading ${esc(c.name)} from ${provName(c)}…`;
+  const data=await fetchProject(c);
+  const switching=(c?connKey(c):null)!==conns.active || !S;
+  CONN=c; conns.active=c?connKey(c):null;
   if(c){ c.lastOpened=Date.now(); rememberConn(c); }
   saveConns();
-  S=data; dirty=false; applyMembers();
+  S=data; applyMembers();
   if(switching){
-    Object.assign(ui,{q:"", hidden:[], hmDay:null, collapsed:[], boardMs:"all", boardWho:"all", feedMember:"all", hmMember:"all"});
+    Object.assign(ui,{q:"", hidden:[], hmDay:null, collapsed:[], boardMs:"all", boardWho:"all", feedMember:"all", hmMember:"all", rcWho:"all"});
     renderOverview._did=false;   // scroll the new timeline to today
+    rc=rcFresh();
   }
   saveUI();
-  const time=d=>new Date(d).toLocaleString([], {month:"short", day:"numeric", hour:"numeric", minute:"2-digit"});
-  const stale = data===saved && c && S.format!==LIVE_FORMAT;   // saved before types, sub-items and estimates were read
-  lastStatus = data===saved ? `Saved copy${S.savedAt?" from "+time(S.savedAt):""}${stale?` · made by an older version, use Reload from ${PROVIDER_NAME[c.provider]} to pick up story types and points`:""}`
-    : c ? `Live from ${PROVIDER_NAME[c.provider]} · ${time(Date.now())}` : `Mock data · snapshot ${fmt(S.asOf)}`;
-  $("btnReset").textContent = c ? `Reload from ${PROVIDER_NAME[c.provider]}` : "Reset to mock data";
+  lastStatus = c ? `Live from ${provName(c)} · ${time()}` : "Demo data · sample project";
+  lastNotice = S.notice || null;
+  $("btnReset").title = c ? `Load the latest data from ${provName(c)}` : "Reload the demo";
+  $("roTag").title = c ? `This dashboard only reads ${c.name}. Make changes in ${provName(c)}; they show up here on Refresh.` : "The demo project is sample data and can't be changed.";
   status(); render(); renderRecent();
 }
 async function switchTo(c){
-  if(dirty&&!confirm("You have unsaved changes. Switch projects and lose them?")) return;
-  try{ await openProject(c,false); toast(`Opened ${esc(c?c.name:"demo project")}`); }
+  try{ await openProject(c); toast(`Opened ${esc(c?c.name:"the demo project")}`); }
   catch(err){ status(); openConnect(c,err.message); }
 }
 function renderRecent(){
   const row=(key,name,sub)=>`<button class="proj" data-proj="${esc(key)}"><span class="ck">${key===(conns.active||"")?"✓":""}</span><span>${esc(name)}<small>${esc(sub)}</small></span></button>`;
   $("recentList").innerHTML = conns.recent.map(c=>row(connKey(c),c.name,`${PROVIDER_NAME[c.provider]} · ${c.project}`)).join("")
-    + row("","Demo project","Sample data · Nimbus");
+    + row("","Demo project","Sample data · Sprout");
 }
 $("recentList").addEventListener("click",e=>{
   const b=e.target.closest("[data-proj]"); if(!b||b.dataset.proj===(conns.active||"")) return;
   switchTo(conns.recent.find(c=>connKey(c)===b.dataset.proj)||null);
 });
 
-/* ---------- connect popup ---------- */
+/* ---------- connect popup: project link, token, sprint calendar ---------- */
 // Accepts a browser link, a clone URL (https or git@) or "owner/repo".
 function parseProjectUrl(s,fallback){
   s=s.trim().replace(/\.git$/,"").replace(/\/+$/,"");
@@ -2001,7 +2257,8 @@ function tokenHelp(provider,host){
     const base=host||"https://gitlab.com";
     return `<details class="tokhelp"><summary>What's a token, and how do I get one?</summary>
       <p>A token is a password made just for this dashboard. It lets the page <b>read</b> your project's issues, milestones and commits. With the steps below it can't change anything.</p>
-      <p><b>Do I need one?</b> Public projects work without one. Private projects (most class projects) need one.</p>
+      <p><b>Do I need one?</b> Private projects (most class projects) need one. Public projects load without one, but milestones and some activity may be missing.</p>
+      ${base.startsWith("http:")?`<p><b>Self-hosted on a private network?</b> Turn that network on first (for example Tailscale). <a href="${esc(base)}" target="_blank" rel="noopener">${esc(base)}</a> must open in this browser.</p>`:""}
       <ol>
         <li><a href="${esc(base)}/-/user_settings/personal_access_tokens?name=UIW-PMD%20dashboard&scopes=read_api" target="_blank" rel="noopener">Open GitLab's new token page</a> and sign in if asked. The name and permission are filled in for you.</li>
         <li><b>Expiration date:</b> pick a date after your semester ends.</li>
@@ -2015,7 +2272,7 @@ function tokenHelp(provider,host){
   const base=host&&host!=="https://github.com"?host:"https://github.com";
   return `<details class="tokhelp"><summary>What's a token, and how do I get one?</summary>
     <p>A token is a password made just for this dashboard. It lets the page <b>read</b> your repository's issues, milestones and commits. With the steps below it can't change anything.</p>
-    <p><b>Do I need one?</b> Private repos need one. Public repos work without one, but GitHub then allows only 60 requests an hour, so a token is still recommended.</p>
+    <p><b>Do I need one?</b> Private repos need one. Public repos work without one, but GitHub then allows only 60 requests an hour, so Recent activity won't refresh on its own. A token is recommended.</p>
     <ol>
       <li><a href="${esc(base)}/settings/personal-access-tokens/new" target="_blank" rel="noopener">Open GitHub's new token page</a> and sign in if asked.</li>
       <li><b>Token name:</b> <code>UIW-PMD dashboard</code>. <b>Expiration:</b> a date after your semester ends.</li>
@@ -2037,8 +2294,9 @@ function connFormChanged(){
   // pointing an edited connection at a different project: don't carry its old name over
   if(connEditing&&p&&connKey(p)!==connKey(connEditing)&&$("cName").value===connEditing.name) $("cName").value="";
   const provider=sel.value, host=p&&p.provider===provider?p.host:null;
-  $("cTokOpt").textContent = provider==="github" ? "(needed for private repos, recommended for all)" : "(needed for private projects)";
+  $("cTokOpt").textContent = provider==="github" ? "(needed for private repos, recommended for all)" : "(read_api; needed for private projects)";
   if(!(connEditing&&tokenInfo(connEditing))) $("cToken").placeholder = provider==="github" ? "github_pat_…" : "glpat-…";
+  $("cHttp").hidden = !(p&&p.host.startsWith("http:"));
   if(helpFor!==provider+host){ helpFor=provider+host; $("cHelp").innerHTML=tokenHelp(provider,host); }
 }
 function showConnErr(msg){ $("cErr").hidden=!msg; $("cErr").textContent=msg||""; if(msg) $("cHelp").querySelector("details").open=/token/i.test(msg); }
@@ -2047,9 +2305,9 @@ function tokenLabel(c){ const t=tokenInfo(c); return !t ? "" : t.tab ? "token fo
 function renderSaved(){
   const anyToken=conns.recent.some(c=>tokenInfo(c));
   $("cSaved").innerHTML = conns.recent.length ? `<h4>Saved projects</h4>` + conns.recent.map(c=>`<div class="saved-row">
-      <span class="nm"><b>${esc(c.name)}</b> <span class="hint">${[PROVIDER_NAME[c.provider], esc(c.project), tokenLabel(c), connKey(c)===conns.active?"open now":""].filter(Boolean).join(" · ")}</span></span>
+      <span class="nm"><b>${esc(c.name)}</b> <span class="hint">${[PROVIDER_NAME[c.provider], esc(c.project), c.sprintStart?`sprints from ${fmt(c.sprintStart)}`:"", tokenLabel(c), connKey(c)===conns.active?"open now":""].filter(Boolean).join(" · ")}</span></span>
       <button class="btn sm" data-edit="${esc(connKey(c))}">Edit</button><button class="btn sm" data-forget="${esc(connKey(c))}">Remove</button></div>`).join("")
-    + (anyToken ? `<div style="margin-top:8px"><button class="btn sm" id="cForgetAll" title="Use this before leaving a shared computer">Forget all tokens on this computer</button></div>` : "") : "";
+    + `<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${anyToken ? `<button class="btn sm" id="cForgetAll" title="Use this before leaving a shared computer">Forget all tokens on this computer</button>` : ""}<button class="btn sm" id="cRemoveAll" title="Remove every saved project and its token; only the demo stays">Remove all projects</button></div>` : "";
 }
 function renderTokState(c){
   const t=c&&tokenInfo(c);
@@ -2063,10 +2321,12 @@ function openConnect(c,err){
   $("cUrl").value = c ? `${c.host}/${c.project}` : "";
   $("cProvider").value = c ? c.provider : "github"; delete $("cProvider").dataset.manual;
   $("cName").value = c ? c.name : "";
+  $("cSprint").value = c&&c.sprintStart || "";
   const t=c&&tokenInfo(c);
   $("cTtl").value = t&&t.tab ? "tab" : "7"; delete $("cTtl").dataset.changed;
   helpFor=null; connFormChanged(); renderTokState(c); showConnErr(err); renderSaved();
-  $("ovConn").classList.add("open"); setTimeout(()=>$("cUrl").focus(),50);
+  $("cHelp").querySelector("details").open = !!c&&!t&&!!err;
+  $("ovConn").classList.add("open"); setTimeout(()=>$(c?"cToken":"cUrl").focus(),50);
 }
 $("btnConnect").onclick=()=>openConnect(null);
 $("cUrl").addEventListener("input",connFormChanged);
@@ -2082,14 +2342,18 @@ $("cSaved").addEventListener("click",async e=>{
     if(!confirm("Forget every saved token on this computer?\n\nYour projects stay in the list; you'll paste a token again the next time you open a private one.")) return;
     await forgetAllTokens(); renderTokState(connEditing); renderSaved(); toast("All tokens forgotten on this computer"); return;
   }
+  if(e.target.id==="cRemoveAll"){
+    if(!confirm(`Remove all ${conns.recent.length} saved project${conns.recent.length===1?"":"s"} from this browser?\n\nTheir tokens are deleted too, and the dashboard goes back to the demo. Nothing changes on GitHub or GitLab.`)) return;
+    conns.recent.forEach(forgetToken); conns.recent=[]; saveConns(); closeOverlays();
+    try{ await openProject(null); }catch(err){} toast("All projects removed · showing the demo"); return;
+  }
   const ed=e.target.closest("[data-edit]"), fg=e.target.closest("[data-forget]");
   if(ed) openConnect(conns.recent.find(c=>connKey(c)===ed.dataset.edit));
   if(fg){
     const c=conns.recent.find(x=>connKey(x)===fg.dataset.forget);
-    if(!confirm(`Remove ${c.name} from your projects?\n\nIts token and saved copy are deleted from this browser. Nothing changes on ${PROVIDER_NAME[c.provider]}.`)) return;
-    try{ localStorage.removeItem(dataKeyFor(c)); }catch(err){}
+    if(!confirm(`Remove ${c.name} from your projects?\n\nIts token is deleted from this browser. Nothing changes on ${PROVIDER_NAME[c.provider]}.`)) return;
     forgetToken(c); conns.recent=conns.recent.filter(x=>x!==c);
-    if(conns.active===connKey(c)){ closeOverlays(); dirty=false; openProject(null,false); } else { saveConns(); renderSaved(); renderRecent(); }
+    if(conns.active===connKey(c)){ closeOverlays(); openProject(null); } else { saveConns(); renderSaved(); renderRecent(); }
   }
 });
 $("cGo").onclick=async()=>{
@@ -2099,9 +2363,7 @@ $("cGo").onclick=async()=>{
   if(sel.dataset.manual) p.provider=sel.value;
   const typed=$("cToken").value.trim(), ttl=$("cTtl").value==="tab"?"tab":+$("cTtl").value;
   const c=Object.assign(p,{name:$("cName").value.trim()||p.project.split("/").pop()});
-  const hasSaved=!!readJSON(dataKeyFor(c));
-  if(hasSaved&&!confirm(`Load the latest data for ${c.name}?\n\nThis replaces the copy saved in this browser, including any local edits.`)) return;
-  if(dirty&&conns.active!==connKey(c)&&!confirm("You have unsaved changes. Switch projects and lose them?")) return;
+  if($("cSprint").value) c.sprintStart=$("cSprint").value;
   const btn=$("cGo"); btn.disabled=true; btn.textContent="Connecting…"; showConnErr("");
   // store the token: a newly pasted one, or the existing one moved to a new link or a new "keep for" choice
   const prev=connEditing, moved=prev&&connKey(prev)!==connKey(c);
@@ -2109,9 +2371,8 @@ $("cGo").onclick=async()=>{
   if(typed||keep) await saveToken(c,typed||keep,ttl);
   if(moved&&(typed||keep)) forgetToken(prev);
   try{
-    await openProject(c,true);
-    if(connEditing&&connKey(connEditing)!==connKey(c)){ conns.recent=conns.recent.filter(x=>x!==connEditing); saveConns(); renderRecent(); }
-    if(hasSaved) try{ localStorage.removeItem(dataKeyFor(c)); }catch(e){}
+    await openProject(c);
+    if(prev&&moved){ conns.recent=conns.recent.filter(x=>x!==prev); saveConns(); renderRecent(); }
     closeOverlays(); toast(`✓ Connected to ${esc(c.name)}`);
   }catch(err){
     if(!conns.recent.some(x=>connKey(x)===connKey(c))) forgetToken(c);   // don't keep tokens for projects that never connected
@@ -2127,9 +2388,11 @@ $("cGo").onclick=async()=>{
   saveConns();
   try{ Object.keys(sessionStorage).filter(k=>k.startsWith("pm_dashboard_token:")).forEach(k=>sessionStorage.removeItem(k)); }catch(e){}
   purgeExpiredTokens();
+  // earlier builds kept an editable copy of each project in this browser; the dashboard now always reads live
+  try{ Object.keys(localStorage).filter(k=>k===LS_KEY||k.startsWith(LS_KEY+"@")).forEach(k=>localStorage.removeItem(k)); }catch(e){}
   const c=activeConn();
-  try{ await openProject(c,false); }
-  catch(err){ await openProject(null,false); openConnect(c,`Couldn't load ${c.name}: ${err.message}`); }
+  try{ await openProject(c); }
+  catch(err){ await openProject(null); openConnect(c,`Couldn't load ${c.name}: ${err.message}`); }
 })();
 </script>
 </body>
