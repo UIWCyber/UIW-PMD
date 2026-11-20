@@ -317,6 +317,9 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
 .gt-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--c);border:1px solid color-mix(in srgb,var(--c) 55%,transparent);background:color-mix(in srgb,var(--c) 12%,transparent);border-radius:20px;padding:0 9px;line-height:18px;white-space:nowrap}
 .gt-sim{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px dashed var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);border-radius:var(--radius);padding:8px 12px;font-size:13px}
 .gt-sim b{color:var(--accent)}
+.gt-warn{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border:1px solid color-mix(in srgb,var(--warn) 50%,transparent);background:color-mix(in srgb,var(--warn) 8%,transparent);border-radius:var(--radius);padding:8px 12px;font-size:13px}
+.gt-warn b{color:var(--warn)}
+.gt-warn .gt-num{font-size:13px}
 .gt-rail{display:flex;align-items:stretch;overflow-x:auto;padding:14px}
 .gt-stage{flex:1 1 0;min-width:150px;border:1px solid var(--border);border-radius:8px;background:var(--panel2);padding:9px 11px;display:flex;flex-direction:column;gap:5px;min-height:96px}
 .gt-stage .nm{font-weight:700;font-size:13px;display:flex;gap:6px;align-items:center;min-width:0}
@@ -921,10 +924,12 @@ const TASKLIST_RE = /^\s*[-*]\s*\[[ xX]\]\s*#(\d+)/gm;
 // gates: a "gate::go" / "gate: hold" label records the reviewer's decision; plain "- [x] text" lines are criteria
 const GATE_RE = /^gate\s*:{1,2}\s*(go|hold|recycle|kill)$/i;
 const CHECK_RE = /^\s*[-*]\s*\[([ xX])\]\s*(?!#\d)(\S.*)$/gm;
+const GATE_KIND_RE = KIND_RE.find(([k])=>k==="gate")[1];
 // no type found anywhere = "untracked"; a plain issue labelled "bug" counts as a bug
 function kindOf(type,title,labels){
   let k=null;
   for(const s of [type,title]) if(s&&!k) for(const [kk,re] of KIND_RE) if(re.test(s)){ k=kk; break; }
+  if(!k&&labels.some(l=>GATE_KIND_RE.test(l))) k="gate";   // a "gate" label wins over task/story/bug labels
   if(!k) for(const [kk,re] of KIND_RE) if(labels.some(l=>re.test(l))){ k=kk; break; }
   if((!k||k==="issue")&&labels.some(l=>KIND_RE[3][1].test(l))) k="bug";
   return k||"untracked";
@@ -1623,8 +1628,11 @@ function renderGates(){
         <li><span>Criteria: <code>Blocked by #7</code>, a task list <code>- [ ] #7</code>, or plain <code>- [ ] Client approved scope</code> lines</span><span></span></li>
         <li><span>Decision: add a <code>gate::</code> label, or close the issue for Go</span><span></span></li></ol></div>
     </div>`;
+  // gates outside any milestone can't gate anything; say so instead of hiding them
+  const loose=S.issues.filter(i=>i.gate&&!order.some(x=>x.m.id===i.ms));
+  const looseNote=loose.length?`<div class="gt-warn"><b>⚠ ${loose.length} gate${loose.length>1?"s have":" has"} no milestone</b><span>${loose.map(g=>`<span class="gt-num" data-open="${g.id}">#${g.id}</span> ${esc(shortTitle(g))}`).join(", ")}. A gate only counts once it is in the milestone it closes, so ${loose.length>1?"these are":"it is"} not shown below.</span></div>`:"";
   if(!gates.length){
-    view.innerHTML=`<div class="pane"><div class="gt-wrap"><div class="card-p"><div class="card-h"><h3>${gateIco()} No gates yet</h3><span class="sub">A gate is a review at the end of a milestone. The next milestone waits until a reviewer says Go.</span></div>${howTo}</div></div></div>`;
+    view.innerHTML=`<div class="pane"><div class="gt-wrap">${looseNote}<div class="card-p"><div class="card-h"><h3>${gateIco()} No gates yet</h3><span class="sub">A gate is a review at the end of a milestone. The next milestone waits until a reviewer says Go.</span></div>${howTo}</div></div></div>`;
     return;
   }
   const sel=gates.find(g=>g.id===ui.gateSel) || gates.find(g=>gateState(g)!=="go") || gates[gates.length-1];
@@ -1644,6 +1652,7 @@ function renderGates(){
       <div class="kpi"><div class="k">Waiting on a gate</div><div class="v">${cnt("wait")}</div><div class="s">items not started yet</div></div>
       <div class="kpi"><div class="k">Started before a gate</div><div class="v" style="color:${early?"var(--warn)":"var(--ok)"}">${early}</div><div class="s" data-tip="${esc(flags.filter(x=>x[1].f==="early").map(([i])=>`#${i.id} ${i.title}`).slice(0,25).join("<br>")||"Nothing started early")}">${early?flags.filter(x=>x[1].f==="early").slice(0,6).map(([i])=>"#"+i.id).join(", ")+(early>6?"…":""):"Nothing started early"}</div></div>
     </div>`;
+  h+=looseNote;
   if(sims) h+=`<div class="gt-sim"><b>What-if preview</b><span>${sims} gate decision${sims>1?"s":""} changed on this page only. Nothing is saved or sent to ${provName(CONN)}.</span><span class="spacer" style="flex:1"></span><button class="btn sm" data-gclear>Show real decisions</button></div>`;
 
   // stages and gates

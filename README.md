@@ -224,8 +224,8 @@ On GitLab, the issue's weight is used first.
 
 **5. Add gates (optional).** A gate is a review at the end of a milestone. Create one issue per milestone:
 
-1. Title it `Gate - Requirements sign-off` (or add a `gate` label, or set the GitHub issue type to "Gate").
-2. Put it in the milestone it closes. If a milestone has several gates, the last one due counts.
+1. Title it `Gate - Requirements sign-off` (or add a `gate` label, or set the GitHub issue type to "Gate"). A `gate` label wins over other type labels such as `task`.
+2. Put it in the milestone it closes. If a milestone has several gates, the last one due counts. A gate with no milestone isn't shown on the Gates tab; a warning lists it instead.
 3. List the criteria in its description. Any mix works:
    - `Blocked by #7, #12`
    - a task list: `- [ ] #7` (in a gate these are criteria, not sub-items)
