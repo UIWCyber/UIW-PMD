@@ -929,7 +929,7 @@ const GATE_KIND_RE = KIND_RE.find(([k])=>k==="gate")[1];
 function kindOf(type,title,labels){
   let k=null;
   for(const s of [type,title]) if(s&&!k) for(const [kk,re] of KIND_RE) if(re.test(s)){ k=kk; break; }
-  if(!k&&labels.some(l=>GATE_KIND_RE.test(l))) k="gate";   // a "gate" label wins over task/story/bug labels
+  if(!k&&labels.some(l=>!GATE_RE.test(l)&&GATE_KIND_RE.test(l))) k="gate";   // a "gate" label wins over task/story/bug labels; a gate::go decision label doesn't
   if(!k) for(const [kk,re] of KIND_RE) if(labels.some(l=>re.test(l))){ k=kk; break; }
   if((!k||k==="issue")&&labels.some(l=>KIND_RE[3][1].test(l))) k="bug";
   return k||"untracked";
@@ -989,7 +989,7 @@ function normalizeLive(raw,provider){
     const gate=kind!=="gate"?null:{decision,
       crit:[...new Set([...deps,...[...r.description.matchAll(TASKLIST_RE)].map(m=>+m[1])])].filter(d=>d!==r.id&&ids.has(d)),
       checks:[...r.description.matchAll(CHECK_RE)].map(m=>({text:m[2].trim(),done:m[1]!==" "}))};
-    return {id:r.id, title:r.title, description:r.description, assignee, ms:msId, objTitle:obj, sp,
+    return {id:r.id, title:r.title, description:r.description, assignee, ms:msId, noMs:!r.msId, objTitle:obj, sp,
       kind, parent:parentOf[r.id]||null,
       start, end, status:statusOf(r.boardStatus?[...r.labels,r.boardStatus]:r.labels,r.closed), tbd, deps:[...new Set(deps)], labels, closedAt, gate};
   });
@@ -1628,11 +1628,12 @@ function renderGates(){
         <li><span>Criteria: <code>Blocked by #7</code>, a task list <code>- [ ] #7</code>, or plain <code>- [ ] Client approved scope</code> lines</span><span></span></li>
         <li><span>Decision: add a <code>gate::</code> label, or close the issue for Go</span><span></span></li></ol></div>
     </div>`;
-  // gates outside any milestone can't gate anything; say so instead of hiding them
-  const loose=S.issues.filter(i=>i.gate&&!order.some(x=>x.m.id===i.ms));
+  // gates outside any milestone can't gate anything; say so instead of hiding them.
+  // Only gates that really have no milestone: if milestones failed to load, the load notice already says why.
+  const loose=S.issues.filter(i=>i.gate&&i.noMs);
   const looseNote=loose.length?`<div class="gt-warn"><b>⚠ ${loose.length} gate${loose.length>1?"s have":" has"} no milestone</b><span>${loose.map(g=>`<span class="gt-num" data-open="${g.id}">#${g.id}</span> ${esc(shortTitle(g))}`).join(", ")}. A gate only counts once it is in the milestone it closes, so ${loose.length>1?"these are":"it is"} not shown below.</span></div>`:"";
   if(!gates.length){
-    view.innerHTML=`<div class="pane"><div class="gt-wrap">${looseNote}<div class="card-p"><div class="card-h"><h3>${gateIco()} No gates yet</h3><span class="sub">A gate is a review at the end of a milestone. The next milestone waits until a reviewer says Go.</span></div>${howTo}</div></div></div>`;
+    view.innerHTML=`<div class="pane"><div class="gt-wrap">${looseNote}<div class="card-p"><div class="card-h"><h3>${gateIco()} ${loose.length?"No gates in a milestone yet":"No gates yet"}</h3><span class="sub">A gate is a review at the end of a milestone. The next milestone waits until a reviewer says Go.</span></div>${howTo}</div></div></div>`;
     return;
   }
   const sel=gates.find(g=>g.id===ui.gateSel) || gates.find(g=>gateState(g)!=="go") || gates[gates.length-1];
