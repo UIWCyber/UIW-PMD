@@ -11,7 +11,7 @@ UIW-PMD is a lightweight project management dashboard built for student and smal
 - [Main goal](#main-goal)
 - [What the dashboard is for](#what-the-dashboard-is-for)
 - [Key advantages](#key-advantages)
-- [The four views](#the-four-views)
+- [The five views](#the-five-views)
 - [How it works](#how-it-works)
 - [Getting started](#getting-started)
 - [Connecting GitHub or GitLab](#connecting-github-or-gitlab)
@@ -53,13 +53,14 @@ It works for a semester capstone, a class project, a club app or any small team 
 | **Pulls from GitHub and GitLab** | Your existing milestones, issues and commits show up automatically. No double entry. |
 | **Zero install** | It is one HTML file, [`git_project-dashboard.html`](git_project-dashboard.html). Open it in any modern browser and you are working. |
 | **User friendly** | Clean tabs, click-to-open issue details, resizable columns, and light or dark mode. |
-| **Easy to navigate** | Four focused views, five outline levels, and filters by milestone or teammate. |
+| **Easy to navigate** | Five focused views, five outline levels, and filters by milestone or teammate. |
 | **Progress at a glance** | Burndown, velocity and per-member charts update the moment an issue changes. |
 | **Live activity** | A Recent activity panel shows what the team did in the last 24 hours or 3 days (commits with their files, comments, label and status changes, merges), refreshed every minute. |
 | **Dependency aware** | Mark issues as blocked by other issues so bottlenecks are visible before they cause delays. |
+| **Milestone gates** | End a milestone with a review. The next milestone shows as waiting until the reviewer says Go, and any work started early is flagged. |
 | **Always up to date** | The dashboard is read-only and keeps no copy of your project: it shows exactly what is on GitHub or GitLab, and **Refresh** loads the latest. |
 
-## The four views
+## The five views
 
 ### 1. Overview / Gantt
 A timeline of every milestone, objective and issue, with start and due dates, story points and owners. Items follow one hierarchy: **Milestone → User Stories → Tasks / Issues → Sub-tasks / Sub-issues / Bugs**, with anything that has no type tagged **Untracked** and listed last. Each story is a parent row with its work nested and indented underneath, plus a done/total count (click the arrow to fold it).
@@ -74,7 +75,17 @@ A timeline of every milestone, objective and issue, with start and due dates, st
 ### 3. Issues / Board
 A board grouped by status. Each column shows its total story points, and every card shows its labels, assignee and due date. Filter by milestone, the current sprint or a teammate, and drag a column's edge to widen it.
 
-### 4. Analytics
+### 4. Gates
+A gate is a review at the end of a milestone, such as a requirements sign-off or an MVP demo. The next milestone should not start until a reviewer says **Go**. The tab shows:
+- **Summary cards:** gates passed, the next gate and its criteria, items waiting on a gate, and items started before a gate passed.
+- **Stages and gates:** every milestone in due-date order with the gate that ends it, coloured by state (Pending, Ready for review, Overdue, Passed, On hold, Recycled, Killed). Click a gate to open it.
+- **The gate:** its criteria checklist, the decision recorded on GitHub or GitLab, and **what-if** buttons (Go, Hold, Recycle, Kill) to preview a decision. What-if changes stay on the page and are never saved or sent anywhere.
+- **Effect:** every item in the next milestone with its flag: **Clear**, **Waiting on gate**, **⚠ Started early**, **Rework** or **Stopped**.
+- **Timeline:** gates drawn at their milestone's due date, with the next milestone's items expanded and flagged.
+
+To set them up, see step 5 of [Setting up your issues](#setting-up-your-issues).
+
+### 5. Analytics
 Charts that show progress without any extra work:
 - **Burndown** for the current sprint or milestone
 - **Velocity** per sprint
@@ -85,7 +96,7 @@ Charts that show progress without any extra work:
 ## How it works
 
 ```
- GitHub / GitLab API  ──►  Data source  ──►  Dashboard state  ──►  Gantt · Activity · Board · Analytics
+ GitHub / GitLab API  ──►  Data source  ──►  Dashboard state  ──►  Gantt · Activity · Board · Gates · Analytics
         ▲                                                                       │
         └──────────────  Refresh / Recent activity (every minute)  ◄────────────┘
 ```
@@ -104,7 +115,7 @@ The dashboard ships with a read-only demo project, **Sprout** (a fictional commu
    git clone https://github.com/UIWCyber/UIW-PMD.git
    ```
 2. Open [`git_project-dashboard.html`](git_project-dashboard.html) in Chrome, Edge, Firefox or Safari.
-3. Explore the four tabs using the demo project.
+3. Explore the five tabs using the demo project.
 4. When you are ready, open **•••** → **Connect a project…** to load your GitHub or GitLab project (below).
 
 ## Connecting GitHub or GitLab
@@ -145,6 +156,7 @@ What the dashboard reads, and how it maps it:
 | Story points | Project field *Estimate* / *Story Points*, an `sp: 5` label, or "Story points: 5" in the description. No default: unestimated items show **–** | Weight, an `sp: 5` label, or "Story points: 5" in the description |
 | Status | Project *Status* column (with a token), or labels containing *ready*, *in progress* or *review*; closed = Done | Labels, e.g. `status::in progress`; closed = Done |
 | Blocked by | "Blocked by #12" or "Depends on #12" in the description | Same |
+| Gates | Items of type Gate; decision from a `gate::go` / `gate::hold` / `gate::recycle` / `gate::kill` label, or closed = Go | Same |
 | Sprints | *Sprint 1 starts on* date, otherwise a 2-week calendar around the work | *Sprint 1 starts on* date, otherwise iterations (Premium), otherwise a 2-week calendar |
 | Activity | Commits, issues opened/closed, merged pull requests | Commits, issues opened/closed, merged merge requests |
 | Recent activity (live) | Commits on every branch, comments, issue/PR timeline (labels, milestone, assignees, title, closed, merged), branches, releases, reviews | Commits on every branch, comments and system notes, label and milestone changes, the project event stream |
@@ -164,6 +176,7 @@ The dashboard reads a few simple conventions. You don't need all of them, but th
 | Bug | `Bug: Login fails`, `Defect - Report crashes` | `bug`, `defect` |
 | Task | `Task: Produce requirements document` | `task` |
 | Sub-task / sub-issue | `Sub-task: Draft interview questions`, `Sub-issue: …` | `sub-task`, `subtask`, `sub-issue` |
+| Gate | `Gate - Requirements sign-off` | `gate` |
 
 A GitHub issue type set in the repository wins over the title, and the title wins over labels. An Issue, or an item with no type, that has a `bug` label counts as a Bug; a Task with a `bug` label stays a Task. The prefix is hidden in the dashboard because the type shows as a tag.
 
@@ -177,6 +190,7 @@ A GitHub issue type set in the repository wins over the title, and the title win
 | Issue or task in a milestone with no stories | Its milestone, grouped by type |
 | Sub-task, sub-issue or bug linked to a task, issue or story | Under that parent, after its tasks and issues |
 | Bug not linked to anything | Its milestone, with the other unlinked items, after tasks and issues |
+| Gate | Its milestone → **Gate**, after the other items |
 | Item with no type | Tagged **Untracked**, in its milestone's **Untracked** group, listed last |
 | Item with no milestone | **No milestone**, at the bottom, grouped the same way |
 
@@ -207,11 +221,32 @@ On GitLab, the issue's weight is used first.
 
 **4. Mark blockers.** Write `Blocked by #12` or `Depends on #12` in the description.
 
+**5. Add gates (optional).** A gate is a review at the end of a milestone. Create one issue per milestone:
+
+1. Title it `Gate - Requirements sign-off` (or add a `gate` label, or set the GitHub issue type to "Gate").
+2. Put it in the milestone it closes. If a milestone has several gates, the last one due counts.
+3. List the criteria in its description. Any mix works:
+   - `Blocked by #7, #12`
+   - a task list: `- [ ] #7` (in a gate these are criteria, not sub-items)
+   - plain checklist lines: `- [ ] Client approved the scope`
+4. Record the reviewer's decision with a label, or close the issue for Go:
+
+| Label | Meaning |
+| --- | --- |
+| `gate::go` (or close the issue) | Passed. The next milestone is open. |
+| `gate::hold` | Paused. Nothing after the gate should move yet. |
+| `gate::recycle` | Sent back. The milestone's items are marked for rework. |
+| `gate::kill` | Stopped. Every later milestone shows as stopped. |
+
+With no decision, a gate is **Ready for review** when every criterion is done, **Overdue** after its milestone's due date, and **Pending** otherwise. Ticking every box never passes a gate on its own; a reviewer has to decide.
+
+Milestones run in due-date order. An item is **Waiting on gate** while any earlier gate hasn't passed, and **⚠ Started early** if it is already in progress or done. The dashboard can't stop the work, because it never writes to GitHub or GitLab, so it flags it instead.
+
 ## Tracking your progress
 
 - **Daily:** check **Recent activity** to see what changed and the **Board** to see where every card stands.
 - **Each sprint:** watch the **Burndown** line against the ideal line and compare **Velocity** with previous sprints.
-- **Each milestone:** use the **Gantt** summary view to confirm every objective is on schedule, and look for blocked issues.
+- **Each milestone:** use the **Gantt** summary view to confirm every objective is on schedule, and look for blocked issues. Before the milestone ends, check its gate's criteria on the **Gates** tab.
 - **Team health:** review **Workload by member** so no one is overloaded and every contribution is visible.
 
 ## Keyboard shortcuts

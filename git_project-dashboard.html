@@ -15,6 +15,7 @@
   --c-team:#768390; --t-team:#ffffff;
   --hm0:#161b22; --hm1:#0e4429; --hm2:#006d32; --hm3:#26a641; --hm4:#39d353;
   --radius:8px; --shadow:0 8px 24px rgba(1,4,9,.55);
+  --recycle:#ff9b6b;
   color-scheme:dark;
 }
 :root[data-theme="light"]{
@@ -23,6 +24,7 @@
   --c-team:#6e7781; --t-team:#ffffff;
   --hm0:#ebedf0; --hm1:#9be9a8; --hm2:#40c463; --hm3:#30a14e; --hm4:#216e39;
   --shadow:0 8px 24px rgba(140,149,159,.3);
+  --recycle:#bc4c00;
   color-scheme:light;
 }
 *{box-sizing:border-box}
@@ -309,6 +311,95 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
 .lg span{display:inline-flex;align-items:center;gap:6px}
 .lg i{width:12px;height:12px;border-radius:3px;display:inline-block}
 
+/* ---------- gates ---------- */
+.gt-wrap{padding:16px;display:flex;flex-direction:column;gap:16px}
+.gt-ico{width:14px;height:14px;flex:none;vertical-align:-2px}
+.gt-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--c);border:1px solid color-mix(in srgb,var(--c) 55%,transparent);background:color-mix(in srgb,var(--c) 12%,transparent);border-radius:20px;padding:0 9px;line-height:18px;white-space:nowrap}
+.gt-sim{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px dashed var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);border-radius:var(--radius);padding:8px 12px;font-size:13px}
+.gt-sim b{color:var(--accent)}
+.gt-rail{display:flex;align-items:stretch;overflow-x:auto;padding:14px}
+.gt-stage{flex:1 1 0;min-width:150px;border:1px solid var(--border);border-radius:8px;background:var(--panel2);padding:9px 11px;display:flex;flex-direction:column;gap:5px;min-height:96px}
+.gt-stage .nm{font-weight:700;font-size:13px;display:flex;gap:6px;align-items:center;min-width:0}
+.gt-stage .nm span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gt-stage .meta{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.gt-stage .flag{font-size:11px;font-weight:700;color:var(--c)}
+.gt-stage.stopped{opacity:.45;background:repeating-linear-gradient(135deg,transparent 0 8px,var(--border2) 8px 9px),var(--panel2)}
+.gt-gate{flex:none;align-self:center;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;cursor:pointer;color:var(--c);padding:4px 2px;font:inherit;position:relative;min-width:84px}
+.gt-gate::before{content:"";position:absolute;left:0;right:0;top:20px;height:2px;background:var(--c);opacity:.45}
+.gt-gate .post{position:relative;width:32px;height:32px;border-radius:8px;border:2px solid var(--c);background:var(--panel);display:flex;align-items:center;justify-content:center}
+.gt-gate .gl{font-size:11px;font-weight:700;white-space:nowrap}
+.gt-gate .gs{font-size:10px;font-weight:600;white-space:nowrap}
+.gt-gate.sel .post{background:var(--c);color:var(--panel);box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 25%,transparent)}
+.gt-gate.none{cursor:default;--c:var(--border)}
+.gt-gate.none .post{border-style:dashed;color:var(--faint)}
+.gt-gate:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.gt-split{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:16px}
+.gt-body{padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.gt-sub{font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.gt-crit{list-style:none;margin:0;padding:0;border:1px solid var(--border2);border-radius:6px}
+.gt-crit li{display:grid;grid-template-columns:18px auto minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--border2);font-size:13px}
+.gt-crit li:last-child{border-bottom:none}
+.gt-crit .ck{font-weight:700;text-align:center}
+.gt-crit .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gt-crit .who{font-size:12px;color:var(--muted);white-space:nowrap}
+.gt-num{color:var(--faint);font-size:12px;cursor:pointer;flex:none}
+.gt-num:hover{color:var(--accent);text-decoration:underline}
+.gt-dec{display:flex;flex-wrap:wrap;gap:6px}
+.gt-dec button{font:inherit;font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.gt-dec button:hover{border-color:var(--c)}
+.gt-dec button.on{border-color:var(--c);color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.gt-dec button code{font-size:11px;color:var(--muted)}
+.gt-dec button.on code{color:var(--c)}
+.gt-verdict{border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 8%,transparent);padding:8px 12px;border-radius:0 6px 6px 0;font-size:13px}
+.gt-verdict b{color:var(--c)}
+.gt-body code,.gt-rules code{background:var(--border2);padding:0 5px;border-radius:4px;font-size:12px}
+.gt-counts{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.gt-count{border:1px solid var(--border2);border-radius:6px;padding:6px 10px}
+.gt-count b{display:block;font-size:18px;color:var(--c);font-variant-numeric:tabular-nums}
+.gt-count span{font-size:11px;color:var(--muted)}
+.gt-items{border:1px solid var(--border2);border-radius:6px;max-height:340px;overflow:auto}
+.gt-items>div{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--border2);font-size:13px}
+.gt-items>div:last-child{border-bottom:none}
+.gt-items .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;gap:6px;align-items:center}
+.gt-items .t span{overflow:hidden;text-overflow:ellipsis}
+.gt-flag{font-size:11px;font-weight:700;color:var(--c);white-space:nowrap}
+.gt-lg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);padding:10px 14px;border-bottom:1px solid var(--border2)}
+.gt-lg span{display:inline-flex;align-items:center;gap:6px}
+.gt-lg i{width:22px;height:10px;border-radius:3px;display:inline-block}
+.gt-tl{overflow-x:auto}
+.gt-tl-in{min-width:900px;position:relative}
+.gt-row{display:grid;grid-template-columns:240px 1fr;border-bottom:1px solid var(--border2);min-height:30px}
+.gt-row:last-child{border-bottom:none}
+.gt-row.ms{background:var(--panel2);min-height:38px}
+.gt-row .nm{padding:6px 10px;font-size:12px;display:flex;gap:6px;align-items:center;min-width:0;border-right:1px solid var(--border2)}
+.gt-row .nm .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gt-row.ms .nm{font-weight:700;font-size:13px}
+.gt-row.it .nm{padding-left:28px}
+.gt-row.tk{min-height:24px;font-size:11px;color:var(--faint);border-bottom:1px solid var(--border)}
+.gt-trk{position:relative;min-width:0}
+.gt-trk .tick{position:absolute;top:0;bottom:0;border-left:1px dashed var(--border2)}
+.gt-trk .tl{position:absolute;top:4px;white-space:nowrap;padding-left:4px}
+.gt-sb{position:absolute;top:50%;height:10px;transform:translateY(-50%);border-radius:3px;overflow:hidden}
+.gt-sb>i{display:block;height:100%}
+.gt-ib{position:absolute;top:50%;height:16px;transform:translateY(-50%);border-radius:4px;font-size:10px;font-weight:700;display:flex;align-items:center;padding:0 5px;overflow:hidden;white-space:nowrap;min-width:6px;cursor:pointer;color:#0d1117}
+.gt-ib.wait{background:transparent!important;border:1.5px dashed var(--faint);color:var(--muted)}
+.gt-ib.early{box-shadow:0 0 0 2px var(--warn)}
+.gt-ib.rework{box-shadow:0 0 0 2px var(--recycle)}
+.gt-ib.stop{background:var(--border2)!important;color:var(--faint);text-decoration:line-through}
+.gt-ib.done{opacity:.55}
+.gt-post{position:absolute;top:3px;bottom:3px;width:22px;margin-left:-11px;display:flex;align-items:center;justify-content:center;color:var(--c);background:none;border:none;cursor:pointer;padding:0;z-index:2}
+.gt-post svg{background:var(--panel2);border-radius:3px;width:18px;height:18px}
+.gt-today{position:absolute;top:0;bottom:0;width:2px;background:#f778ba;z-index:3;pointer-events:none}
+.gt-rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:20px;padding:14px}
+.gt-rules h4{margin:0 0 6px;font-size:13px}
+.gt-rules ol{margin:0;padding:0;list-style:none;counter-reset:r}
+.gt-rules li{counter-increment:r;display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--border2);font-size:13px}
+.gt-rules li:first-child{border-top:none}
+.gt-rules li::before{content:counter(r);font-size:11px;color:var(--faint);text-align:center}
+.gt-rules p{margin:8px 0 0;font-size:12px;color:var(--muted)}
+details.card-p>summary{cursor:pointer;padding:10px 14px;font-weight:600;font-size:14px}
+details.card-p[open]>summary{border-bottom:1px solid var(--border)}
+
 /* ---------- modal / tooltip / toast ---------- */
 .overlay{position:fixed;inset:0;background:rgba(1,4,9,.6);display:flex;align-items:flex-start;justify-content:center;z-index:50;padding:5vh 16px;opacity:0;pointer-events:none;transition:opacity .18s}
 .overlay.open{opacity:1;pointer-events:auto}
@@ -381,6 +472,7 @@ select.sel:focus,input.inp:focus{outline:none;border-color:var(--accent);box-sha
     <button class="tab active" data-view="overview">Overview / Gantt</button>
     <button class="tab" data-view="activity">Activity</button>
     <button class="tab" data-view="board">Issues / Board</button>
+    <button class="tab" data-view="gates">Gates</button>
     <button class="tab" data-view="analytics">Analytics</button>
   </nav>
   <div class="spacer"></div>
@@ -500,7 +592,7 @@ const MockSource = (() => {
     [5,"Task: Compare soil sensor hardware","Mei",2,10,1,null,5,[],[]],
     [6,"Task: Set up repo, CI and branch rules","Sam",1,6,1,null,3,[],[]],
     [7,"Task: Write the requirements document","Diego",8,17,1,null,8,["docs"],[2,4,5]],
-    [8,"Requirements sign-off meeting",null,18,20,1,null,0,[],[7]],
+    [8,"Gate - Requirements sign-off",null,18,20,1,null,0,[],[7]],
     [9,"Issue - Wi-Fi coverage unknown at two garden sites","Mei",6,13,1,null,2,[],[]],
 
     [10,"User Story - As a gardener I can book a plot online","Avery",21,46,2,null,13,[],[]],
@@ -515,7 +607,7 @@ const MockSource = (() => {
     [19,"Task: REST API contract (OpenAPI)","Diego",28,40,2,null,8,["docs"],[18]],
     [20,"Task: Staging environment","Sam",24,37,2,null,5,[],[6]],
     [21,"Bug: CI cache breaks after dependency updates","Sam",33,35,2,null,1,[],[]],
-    [22,"Prototype review deck",null,43,48,2,null,3,["docs"],[13,17,19]],
+    [22,"Gate - Prototype review",null,43,48,2,null,3,["docs"],[13,17,19]],
 
     [23,"User Story - As a gardener I can reserve and pay for a plot","Diego",49,90,3,null,0,[],[]],
     [24,"Task: Auth & accounts service","Diego",49,60,3,23,8,["security"],[19]],
@@ -537,7 +629,7 @@ const MockSource = (() => {
     [40,"Task: Automated end-to-end test suite","Sam",58,72,3,null,8,["test"],[39]],
     [41,"Issue - Sensor battery lasts 4 days instead of 30","Mei",67,82,3,null,5,[],[]],
     [42,"Load test the reservations API","Sam",85,92,3,null,3,["test"],[25]],
-    [43,"MVP demo",null,95,97,3,null,2,[],[27,30,34,37]],
+    [43,"Gate - MVP demo",null,95,97,3,null,2,[],[27,30,34,37]],
     [44,"Bug: Reservation emails show the wrong time zone",null,66,70,3,null,0,[],[]],
 
     [45,"User Story - As a coordinator I can export a season report","Diego",98,120,4,null,0,[],[]],
@@ -545,13 +637,13 @@ const MockSource = (() => {
     [47,"Task: Season report PDF layout","Avery",106,118,4,45,5,["design"],[46]],
     [48,"Task: Install sensors at 3 pilot gardens","Mei",100,112,4,null,8,[],[43]],
     [49,"Task: Pilot onboarding guide","Sam",98,106,4,null,3,["docs"],[]],
-    [50,"Pilot feedback survey",null,118,128,4,null,2,[],[48]],
+    [50,"Gate - Pilot go/no-go",null,118,128,4,null,2,[],[48]],
     [51,"Issue - Accessibility audit (WCAG 2.2 AA)","Avery",120,131,4,null,5,["test"],[]],
 
     [52,"Task: App store listing","Avery",134,145,5,null,3,[],[51]],
     [53,"Task: Production cutover plan","Sam",136,146,5,null,5,["docs"],[]],
     [54,"Task: Coordinator handbook","Diego",140,150,5,null,0,["docs"],[]],
-    [55,"Public launch",null,155,157,5,null,2,[],[52,53]],
+    [55,"Gate - Launch go/no-go",null,155,157,5,null,2,[],[52,53]],
     [56,"Retrospective & handoff",null,157,160,5,null,0,["docs"],[55]],
 
     [57,"Update README screenshots","Sam",60,62,null,null,1,["docs"],[]],
@@ -569,6 +661,11 @@ const MockSource = (() => {
     41:"Firmware wakes the radio too often. Target: 30 days on two AA batteries.\n\nBlocked by #35",
     44:"Emails show UTC instead of the garden's local time.",
     45:"Coordinators need a season report (plots used, waitlist, water alerts) for the city parks office.",
+    8:"Reviewer: course instructor and the garden coordinators.\n\n- [x] Coordinators agree on the plot-booking scope",
+    22:"Reviewer: course instructor.\n\n- [x] Prototype walkthrough recorded",
+    43:"Reviewer: course instructor. The decision is recorded with a gate:: label (gate::go, gate::hold, gate::recycle or gate::kill).\n\n- [ ] Demo script rehearsed with the whole team",
+    50:"Go/no-go for a public launch, based on the pilot results.\n\n- [ ] Survey answered by at least 2 of the 3 pilot gardens",
+    55:"Final go/no-go before the public launch.",
   };
   const COMMIT_MSGS = {
     web:["Add plot card component","Fix layout shift on the garden map","Wire up plot filters","Add responsive nav menu","Update color tokens","Validate the booking form"],
@@ -818,9 +915,12 @@ const MS_COLORS = ["#bc8cff","#58a6ff","#f778ba","#e3b341","#3fb950","#ff9b6b","
 const SP_RE = /^(?:sp|story ?points?|points?|pts|weight|estimate)\s*[:=]{0,2}\s*(\d+)$|^(\d+)\s*(?:sp|pts?|points?)$/i;
 const SP_BODY_RE = /(?:story ?points?|estimat(?:e|ion)(?: of effort)?|\bsp)\b[\s*_#:=-]*(\d{1,3})\b(?!\s*(?:h|hrs?|hours?|d|days?|w|wks?|weeks?)\b)/i;
 const OBJ_RE = /^(?:objective|epic)\s*:{1,2}\s*(.+)$/i;
-const KIND_RE = [["subtask",/^\W*sub[- ]?(?:tasks?|issues?)\b/i],["story",/^\W*(?:user ?)?stor(?:y|ies)\b/i],["task",/^\W*tasks?\b/i],["bug",/^\W*(?:bugs?|defects?)\b/i],["issue",/^\W*issues?\b/i]];
+const KIND_RE = [["subtask",/^\W*sub[- ]?(?:tasks?|issues?)\b/i],["story",/^\W*(?:user ?)?stor(?:y|ies)\b/i],["task",/^\W*tasks?\b/i],["bug",/^\W*(?:bugs?|defects?)\b/i],["issue",/^\W*issues?\b/i],["gate",/^\W*gates?\b/i]];
 const PARENT_RE = /(?:parent(?: issue| story)?|part of|sub-?(?:task|issue) of|child of)\s*:?\s*#(\d+)/i;
 const TASKLIST_RE = /^\s*[-*]\s*\[[ xX]\]\s*#(\d+)/gm;
+// gates: a "gate::go" / "gate: hold" label records the reviewer's decision; plain "- [x] text" lines are criteria
+const GATE_RE = /^gate\s*:{1,2}\s*(go|hold|recycle|kill)$/i;
+const CHECK_RE = /^\s*[-*]\s*\[([ xX])\]\s*(?!#\d)(\S.*)$/gm;
 // no type found anywhere = "untracked"; a plain issue labelled "bug" counts as a bug
 function kindOf(type,title,labels){
   let k=null;
@@ -852,7 +952,8 @@ function normalizeLive(raw,provider){
   raw.issues.forEach(r=>{ if(r.parentIid) link(r.id,r.parentIid); });            // GitLab work-item hierarchy
   raw.issues.forEach(r=>(r.subs||[]).forEach(k=>link(k,r.id)));                   // GitHub sub-issues
   raw.issues.forEach(r=>{ const m=r.description.match(PARENT_RE); if(m) link(r.id,+m[1]); });
-  raw.issues.forEach(r=>{ for(const m of r.description.matchAll(TASKLIST_RE)) link(+m[1],r.id); });
+  const isGate=r=>kindOf(r.type,r.title,r.labels)==="gate";
+  raw.issues.forEach(r=>{ if(isGate(r)) return; for(const m of r.description.matchAll(TASKLIST_RE)) link(+m[1],r.id); });   // a gate's task list holds its criteria, not sub-items
   for(const id of Object.keys(parentOf)){ const seen=new Set([+id]); for(let p=parentOf[id];p;p=parentOf[p]){ if(seen.has(p)){ delete parentOf[id]; break; } seen.add(p); } }
   const ev=[];
   const E=(when,actor,type,text,issue,meta)=>{ if(when) ev.push({ts:ts(when), actor:who(actor), type, text, issue:issue??null, meta:meta||null}); };
@@ -860,12 +961,12 @@ function normalizeLive(raw,provider){
   const issues=raw.issues.map(r=>{
     let msId=r.msId;
     if(!msIds.has(msId)){
-      if(!loose){ loose={id:Math.max(0,...milestones.map(m=>m.id))+1, title:"No milestone", color:"#768390", due:null, note:"Issues not in a milestone"}; milestones.push(loose); }
+      if(!loose){ loose={id:Math.max(0,...milestones.map(m=>m.id))+1, title:"No milestone", color:"#768390", due:null, note:"Issues not in a milestone", loose:true}; milestones.push(loose); }
       msId=loose.id;
     }
     const ms=milestones.find(m=>m.id===msId);
-    let sp=r.sp||0, obj=r.objTitle||null; const labels=[];
-    for(const l of r.labels){ const a=l.match(SP_RE), b=l.match(OBJ_RE); if(a) sp=sp||+(a[1]||a[2]); else if(b) obj=obj||b[1].trim(); else labels.push(l); }
+    let sp=r.sp||0, obj=r.objTitle||null, decision=null; const labels=[];
+    for(const l of r.labels){ const a=l.match(SP_RE), b=l.match(OBJ_RE), g=l.match(GATE_RE); if(a) sp=sp||+(a[1]||a[2]); else if(b) obj=obj||b[1].trim(); else if(g) decision=decision||g[1].toLowerCase(); else labels.push(l); }
     if(!sp){ const m=r.description.match(SP_BODY_RE); if(m) sp=+m[1]; }
     const closedAt=r.closed?day(r.closedAt):null;
     const start=r.start||day(r.createdAt);
@@ -878,9 +979,14 @@ function normalizeLive(raw,provider){
     const assignee=r.assignee?who(r.assignee):"Team";
     E(r.createdAt,r.author,"issue_created",`opened issue #${r.id} ${r.title}`,r.id);
     if(r.closed) E(r.closedAt,r.closer||r.assignee||r.author,"issue_closed",`closed issue #${r.id} ${r.title}`,r.id);
+    const kind=kindOf(r.type,r.title,r.labels);
+    // a gate's criteria: its "Blocked by" items, "- [ ] #12" task-list items and plain "- [ ] text" lines
+    const gate=kind!=="gate"?null:{decision,
+      crit:[...new Set([...deps,...[...r.description.matchAll(TASKLIST_RE)].map(m=>+m[1])])].filter(d=>d!==r.id&&ids.has(d)),
+      checks:[...r.description.matchAll(CHECK_RE)].map(m=>({text:m[2].trim(),done:m[1]!==" "}))};
     return {id:r.id, title:r.title, description:r.description, assignee, ms:msId, objTitle:obj, sp,
-      kind:kindOf(r.type,r.title,r.labels), parent:parentOf[r.id]||null,
-      start, end, status:statusOf(r.boardStatus?[...r.labels,r.boardStatus]:r.labels,r.closed), tbd, deps:[...new Set(deps)], labels, closedAt};
+      kind, parent:parentOf[r.id]||null,
+      start, end, status:statusOf(r.boardStatus?[...r.labels,r.boardStatus]:r.labels,r.closed), tbd, deps:[...new Set(deps)], labels, closedAt, gate};
   });
   const byNum={}; issues.forEach(i=>byNum[i.id]=i);
   const topOf=i=>{ let t=i; while(t.parent&&byNum[t.parent]) t=byNum[t.parent]; return t; };
@@ -945,9 +1051,9 @@ const ST = Object.fromEntries(STATUSES.map(([k,l,c])=>[k,{label:l,color:c}]));
 const SP_SCALE = [1,2,3,5,8,13,21];
 // item types: [key, label, objective name used when grouping by type, color]
 // in hierarchy order: milestone → stories → tasks / issues → sub-tasks / sub-issues / bugs → untracked
-const KINDS = [["story","User Story","User Stories","#3fb950"],["task","Task","Tasks","#58a6ff"],["issue","Issue","Issues","#d29922"],["subtask","Sub-task","Sub-tasks","#bc8cff"],["bug","Bug","Bugs","#f85149"],["untracked","Untracked","Untracked","#768390"]];
+const KINDS = [["story","User Story","User Stories","#3fb950"],["task","Task","Tasks","#58a6ff"],["issue","Issue","Issues","#d29922"],["subtask","Sub-task","Sub-tasks","#bc8cff"],["bug","Bug","Bugs","#f85149"],["gate","Gate","Gate","#39c5cf"],["untracked","Untracked","Untracked","#768390"]];
 const KIND = Object.fromEntries(KINDS.map(([k,label,group,color])=>[k,{label,group,color}]));
-const LIVE_FORMAT = 6;   // bump when normalizeLive changes shape (recorded in "Download data" exports)
+const LIVE_FORMAT = 7;   // bump when normalizeLive changes shape (recorded in "Download data" exports)
 // colors for well-known labels (the demo's areas); any other label is grey
 const LABEL_COLORS = {web:"#3987e5",api:"#d95926",iot:"#199e70",devops:"#c98500",design:"#8957e5",docs:"#6e7781",test:"#2da44e",security:"#da3633"};
 // the same storage keys earlier builds used, so saved projects and tokens carry over
@@ -1145,12 +1251,13 @@ function spBadge(i){
 }
 function spOptions(v){ return [0,...new Set([...SP_SCALE,v||0])].filter((n,k)=>k===0||n).sort((a,b)=>a-b).map(n=>`<option value="${n}" ${n===(v||0)?"selected":""}>${n||"– (not estimated)"}</option>`).join(""); }
 // "User Story - Define scope" → "Define scope" once the type is shown as a tag
-const shortTitle = i => i.kind ? (i.title.replace(/^\W*(?:user\s*stor(?:y|ies)|stor(?:y|ies)|sub[- ]?(?:tasks?|issues?)|tasks?|issues?|bugs?|defects?)\s*[-–—:|]\s*/i,"")||i.title) : i.title;
+const shortTitle = i => i.kind ? (i.title.replace(/^\W*(?:user\s*stor(?:y|ies)|stor(?:y|ies)|sub[- ]?(?:tasks?|issues?)|tasks?|issues?|bugs?|defects?|gates?)\s*[-–—:|]\s*/i,"")||i.title) : i.title;
 const kindTag = i => KIND[i.kind] ? `<span class="ktag" style="--k:${KIND[i.kind].color}">${KIND[i.kind].label}</span>` : "";
 // automatic objective for a top-level item: User Stories; Untracked last; otherwise "Not linked to a story"
 // when the milestone has stories, else one group per type
 function autoGroup(kind,msHasStories){
   if(kind==="untracked") return [99,KIND.untracked.group];
+  if(kind==="gate") return [90,KIND.gate.group];
   if(kind!=="story"&&msHasStories) return [80,"Not linked to a story"];
   return [1+KINDS.findIndex(k=>k[0]===kind),KIND[kind].group];
 }
@@ -1178,7 +1285,7 @@ function render(){
   document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.view===ui.view));
   renderBrand();
   renderLegend();
-  ({overview:renderOverview, activity:renderActivity, board:renderBoard, analytics:renderAnalytics})[ui.view]();
+  ({overview:renderOverview, activity:renderActivity, board:renderBoard, gates:renderGates, analytics:renderAnalytics})[ui.view]();
 }
 function renderBrand(){
   const p=S.project;
@@ -1442,6 +1549,198 @@ function toggleGroup(gr){
 }
 
 /* =====================================================================
+   GATES · a review at the end of a milestone; the next milestone waits for a Go
+   A gate is an item of type Gate ("Gate - …" title, a "gate" label or issue type). Its criteria are
+   its "Blocked by" items, "- [ ] #12" task-list items and plain "- [ ] text" lines (see normalizeLive).
+   The decision is a label (gate::go / hold / recycle / kill); closing the issue also counts as Go.
+   Milestones run in due-date order and the last gate in a milestone gates everything after it.
+   The what-if buttons only change this page (GSIM); nothing is written to GitHub or GitLab.
+   ===================================================================== */
+let GSIM = {};           // gate id → what-if decision ("none" | "go" | "hold" | "recycle" | "kill"); cleared on every load
+const GATE_ST = {pending:{label:"Pending",c:"var(--faint)"}, ready:{label:"Ready for review",c:"var(--accent)"}, overdue:{label:"Overdue",c:"var(--danger)"},
+  go:{label:"Passed",c:"var(--ok)"}, hold:{label:"On hold",c:"var(--warn)"}, recycle:{label:"Recycled",c:"var(--recycle)"}, kill:{label:"Killed",c:"var(--danger)"}};
+const GATE_FLAG = {clear:{label:"Clear",c:"var(--ok)"}, wait:{label:"Waiting on gate",c:"var(--muted)"}, early:{label:"⚠ Started early",c:"var(--warn)"},
+  rework:{label:"Rework",c:"var(--recycle)"}, stop:{label:"Stopped",c:"var(--danger)"}};
+const GATE_DECS = [["none","No decision",""],["go","Go","gate::go"],["hold","Hold","gate::hold"],["recycle","Recycle","gate::recycle"],["kill","Kill","gate::kill"]];
+const GATE_DEC_C = {none:"var(--faint)",go:"var(--ok)",hold:"var(--warn)",recycle:"var(--recycle)",kill:"var(--danger)"};
+const gateIco = (size=14) => `<svg class="gt-ico" width="${size}" height="${size}" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2v12M13 2v12M3 5.5h10M3 10h10" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`;
+// real milestones in due-date order (TBD last), each with its gate (the last one due, if it has several)
+function gateOrder(){
+  const key=m=>m.due||"9999-99-99";
+  return S.milestones.filter(m=>!m.loose).map((m,k)=>({m,k})).sort((a,b)=>key(a.m)<key(b.m)?-1:key(a.m)>key(b.m)?1:a.k-b.k)
+    .map(({m})=>{ const gs=S.issues.filter(i=>i.ms===m.id&&i.gate).sort((a,b)=>a.end<b.end?-1:a.end>b.end?1:0); return {m, g:gs[gs.length-1]||null}; });
+}
+const gateDue = g => msById(g.ms)?.due || g.end;
+function gateCrit(g){
+  const items=(g.gate?.crit||[]).map(byId).filter(Boolean), checks=g.gate?.checks||[];
+  return {items, checks, done:items.filter(i=>i.status==="done").length+checks.filter(c=>c.done).length, total:items.length+checks.length};
+}
+const gateRealDec = g => g.gate?.decision || (g.status==="done"?"go":"none");
+const gateDec = g => Object.prototype.hasOwnProperty.call(GSIM,g.id) ? GSIM[g.id] : gateRealDec(g);
+// first match wins: kill, recycle, hold, go (label or closed), ready (all criteria done), overdue, pending
+function gateState(g){
+  const d=gateDec(g);
+  if(d!=="none") return d;
+  const c=gateCrit(g);
+  if(c.total&&c.done===c.total) return "ready";
+  if(gateDue(g)<today()) return "overdue";
+  return "pending";
+}
+const gatePill = g => { const s=GATE_ST[gateState(g)]; return `<span class="gt-pill" style="--c:${s.c}">${gateIco(11)}${s.label}</span>`; };
+// flag for an item after a gate: stopped, rework, clear, started early or waiting
+function gateFlag(i,order){
+  if(i.gate) return null;
+  const idx=order.findIndex(x=>x.m.id===i.ms); if(idx<0) return null;
+  const before=order.slice(0,idx).filter(x=>x.g);
+  const killed=before.find(x=>gateState(x.g)==="kill"); if(killed) return {f:"stop",gate:killed.g};
+  if(order[idx].g&&gateState(order[idx].g)==="recycle") return {f:"rework",gate:order[idx].g};
+  const open=before.find(x=>gateState(x.g)!=="go");
+  if(!open) return {f:"clear"};
+  return {f:i.status==="todo"||i.status==="ready"?"wait":"early", gate:open.g};
+}
+function renderGates(){
+  const order=gateOrder(), gates=order.filter(x=>x.g).map(x=>x.g), t=today();
+  const howTo=`<div class="gt-rules">
+      <div><h4>Gate state</h4><ol>
+        <li><span><code>gate::kill</code> label</span>${pillOf("kill")}</li>
+        <li><span><code>gate::recycle</code> label</span>${pillOf("recycle")}</li>
+        <li><span><code>gate::hold</code> label</span>${pillOf("hold")}</li>
+        <li><span><code>gate::go</code> label, or the gate issue is closed</span>${pillOf("go")}</li>
+        <li><span>Every criterion is done, no decision yet</span>${pillOf("ready")}</li>
+        <li><span>The milestone's due date has passed</span>${pillOf("overdue")}</li>
+        <li><span>Anything else</span>${pillOf("pending")}</li></ol>
+        <p>Ticking every box only makes a gate <b>Ready for review</b>. A reviewer still has to decide.</p></div>
+      <div><h4>Items after a gate</h4><ol>
+        <li><span>An earlier gate was killed</span>${flagOf("stop")}</li>
+        <li><span>The item's own milestone was sent back</span>${flagOf("rework")}</li>
+        <li><span>Every earlier gate passed</span>${flagOf("clear")}</li>
+        <li><span>A gate before it hasn't passed and the item has started</span>${flagOf("early")}</li>
+        <li><span>A gate before it hasn't passed and the item hasn't started</span>${flagOf("wait")}</li></ol>
+        <p>The dashboard never writes to ${provName(CONN)}, so it can't stop anyone from working. It flags the work instead.</p></div>
+      <div><h4>Mark a gate in ${provName(CONN)}</h4><ol>
+        <li><span>Title <code>Gate - Requirements sign-off</code>, a <code>gate</code> label, or an issue type "Gate"</span><span></span></li>
+        <li><span>Put it in the milestone it closes</span><span></span></li>
+        <li><span>Criteria: <code>Blocked by #7</code>, a task list <code>- [ ] #7</code>, or plain <code>- [ ] Client approved scope</code> lines</span><span></span></li>
+        <li><span>Decision: add a <code>gate::</code> label, or close the issue for Go</span><span></span></li></ol></div>
+    </div>`;
+  if(!gates.length){
+    view.innerHTML=`<div class="pane"><div class="gt-wrap"><div class="card-p"><div class="card-h"><h3>${gateIco()} No gates yet</h3><span class="sub">A gate is a review at the end of a milestone. The next milestone waits until a reviewer says Go.</span></div>${howTo}</div></div></div>`;
+    return;
+  }
+  const sel=gates.find(g=>g.id===ui.gateSel) || gates.find(g=>gateState(g)!=="go") || gates[gates.length-1];
+  const gn=g=>gates.indexOf(g)+1;
+  const flags=S.issues.map(i=>[i,gateFlag(i,order)]).filter(x=>x[1]);
+  const cnt=f=>flags.filter(x=>x[1].f===f).length;
+  const passed=gates.filter(g=>gateState(g)==="go").length, next=gates.find(g=>gateState(g)!=="go");
+  const nc=next?gateCrit(next):null, early=cnt("early");
+  const sims=Object.keys(GSIM).length;
+
+  // KPIs
+  let h=`<div class="pane"><div class="gt-wrap">
+    <div class="kpis" style="padding:0">
+      <div class="kpi"><div class="k">Gates passed</div><div class="v">${passed} <span style="color:var(--faint);font-size:14px">/ ${gates.length}</span></div><div class="s">${gates.length-passed} still ahead</div><div class="meter"><i style="width:${Math.round(passed/gates.length*100)}%"></i></div></div>
+      <div class="kpi"><div class="k">Next gate</div><div class="v" style="font-size:16px;padding-top:3px">${next?`${gateIco()} ${esc(shortTitle(next))}`:"All gates passed"}</div><div class="s">${next?`${fmt(gateDue(next))} · ${diff(t,gateDue(next))>=0?`in ${diff(t,gateDue(next))} days`:`${-diff(t,gateDue(next))} days late`} · ${GATE_ST[gateState(next)].label}`:""}</div></div>
+      <div class="kpi"><div class="k">Next gate's criteria</div><div class="v">${nc?`${nc.done} <span style="color:var(--faint);font-size:14px">/ ${nc.total}</span>`:"—"}</div><div class="s">${nc?"criteria done":""}</div>${nc?`<div class="meter"><i style="width:${nc.total?Math.round(nc.done/nc.total*100):0}%"></i></div>`:""}</div>
+      <div class="kpi"><div class="k">Waiting on a gate</div><div class="v">${cnt("wait")}</div><div class="s">items not started yet</div></div>
+      <div class="kpi"><div class="k">Started before a gate</div><div class="v" style="color:${early?"var(--warn)":"var(--ok)"}">${early}</div><div class="s" data-tip="${esc(flags.filter(x=>x[1].f==="early").map(([i])=>`#${i.id} ${i.title}`).slice(0,25).join("<br>")||"Nothing started early")}">${early?flags.filter(x=>x[1].f==="early").slice(0,6).map(([i])=>"#"+i.id).join(", ")+(early>6?"…":""):"Nothing started early"}</div></div>
+    </div>`;
+  if(sims) h+=`<div class="gt-sim"><b>What-if preview</b><span>${sims} gate decision${sims>1?"s":""} changed on this page only. Nothing is saved or sent to ${provName(CONN)}.</span><span class="spacer" style="flex:1"></span><button class="btn sm" data-gclear>Show real decisions</button></div>`;
+
+  // stages and gates
+  h+=`<section class="card-p"><div class="card-h"><h3>Stages and gates</h3><span class="sub">Each milestone ends in a gate. Click a gate to open it.</span></div><div class="gt-rail">`;
+  order.forEach(({m,g},k)=>{
+    const its=S.issues.filter(i=>i.ms===m.id), done=its.filter(i=>i.status==="done").length;
+    const f=its.map(i=>gateFlag(i,order)).filter(Boolean);
+    const stop=f.some(x=>x.f==="stop"), rework=f.some(x=>x.f==="rework"), ea=f.find(x=>x.f==="early"), wa=f.find(x=>x.f==="wait");
+    const flag=stop?`<span class="flag" style="--c:${GATE_FLAG.stop.c}">Stopped</span>`
+      :rework?`<span class="flag" style="--c:${GATE_FLAG.rework.c}">Sent back for rework</span>`
+      :ea?`<span class="flag" style="--c:${GATE_FLAG.early.c}">⚠ Work started before Gate ${gn(ea.gate)}</span>`
+      :wa?`<span class="flag" style="--c:${GATE_FLAG.wait.c}">Waiting on Gate ${gn(wa.gate)}</span>`:"";
+    h+=`<div class="gt-stage${stop?" stopped":""}"><span class="nm"><span class="mbar" style="background:${m.color};height:12px"></span><span title="${esc(m.title)}">${esc(m.title)}</span></span>
+      <div class="meter" style="margin:0"><i style="width:${its.length?Math.round(done/its.length*100):0}%;background:${m.color}"></i></div>
+      <span class="meta">${done}/${its.length} done · due ${m.due?fmt(m.due):"TBD"}</span>${flag}</div>`;
+    if(g){ const st=GATE_ST[gateState(g)];
+      h+=`<button class="gt-gate${g===sel?" sel":""}" style="--c:${st.c}" data-gsel="${g.id}" aria-pressed="${g===sel}" title="Gate ${gn(g)} · ${esc(shortTitle(g))}"><span class="post">${gateIco(16)}</span><span class="gl">Gate ${gn(g)}</span><span class="gs">${st.label}</span></button>`; }
+    else if(k<order.length-1) h+=`<div class="gt-gate none" title="No gate at the end of this milestone"><span class="post">${gateIco(16)}</span><span class="gl" style="color:var(--faint)">No gate</span></div>`;
+  });
+  h+=`</div></section>`;
+
+  // selected gate + its effect
+  const st=gateState(sel), S1=GATE_ST[st], c=gateCrit(sel), ms=msById(sel.ms);
+  const idx=order.findIndex(x=>x.m.id===sel.ms), nextMs=order[idx+1]?.m||null;
+  const nx=nextMs?esc(nextMs.title):null;
+  const VERDICT={
+    pending:`<b>Pending.</b> ${c.done} of ${c.total} criteria are done.${nx?` Work in ${nx} should not start yet.`:""}`,
+    overdue:`<b>Overdue.</b> The milestone was due ${fmt(gateDue(sel))} and the gate has no decision.${nx?` ${nx} is still waiting.`:""}`,
+    ready:`<b>Ready for review.</b> Every criterion is done. The reviewer now adds a <code>gate::</code> label or closes the issue.`,
+    go:`<b>Passed.</b> ${nx?`${nx} is open.`:"This was the last gate."}`,
+    hold:`<b>On hold.</b> Nothing after this gate should move until the reviewer decides.${nx?` Work already started in ${nx} is flagged.`:""}`,
+    recycle:`<b>Recycled.</b> ${esc(ms.title)} is sent back. Its items are marked for rework, and the gate is reviewed again later.`,
+    kill:`<b>Killed.</b> The project stops here. Every later milestone is stopped.`};
+  const ck={done:["✓","var(--ok)","Done"],progress:["◐","var(--warn)","In progress"],review:["◐","var(--warn)","In review"],ready:["○","var(--faint)","Not started"],todo:["○","var(--faint)","Not started"]};
+  const real=gateRealDec(sel), cur=gateDec(sel);
+  h+=`<div class="gt-split"><section class="card-p"><div class="card-h"><h3>${gateIco()} Gate ${gn(sel)} · ${esc(shortTitle(sel))}</h3><span style="flex:1"></span>${gatePill(sel)}</div><div class="gt-body">
+      <div class="gt-sub"><span class="gt-num" data-open="${sel.id}">#${sel.id}</span><span class="mbar" style="background:${ms.color};height:12px"></span>${esc(ms.title)} · due ${fmt(gateDue(sel))}</div>
+      <div><div class="gt-sub" style="justify-content:space-between"><span>Criteria</span><span>${c.done} of ${c.total} done</span></div><div class="meter"><i style="width:${c.total?Math.round(c.done/c.total*100):0}%"></i></div></div>
+      ${c.total?`<ul class="gt-crit">${c.items.map(i=>{ const k=ck[i.status]; return `<li><span class="ck" style="color:${k[1]}" title="${k[2]}">${k[0]}</span><span class="gt-num" data-open="${i.id}">#${i.id}</span><span class="t" title="${esc(i.title)}">${esc(shortTitle(i))}</span><span class="who">${esc(i.assignee)}</span></li>`; }).join("")}${c.checks.map(x=>`<li><span class="ck" style="color:${x.done?"var(--ok)":"var(--faint)"}" title="${x.done?"Checked":"Not checked"}">${x.done?"✓":"○"}</span><span></span><span class="t" title="${esc(x.text)}">${esc(x.text)}</span><span class="who">checklist</span></li>`).join("")}</ul>`
+        :`<div class="hint">No criteria. Add "Blocked by #12" or a "- [ ] …" checklist to the gate's description.</div>`}
+      <div class="gt-sub">Decision on ${provName(CONN)}: <b style="color:var(--text)">${real==="none"?"none yet":sel.gate.decision?`<code>gate::${real}</code>`:"closed (Go)"}</b></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span class="gt-sub">What if the reviewer decides… <span class="hint">(preview only)</span></span>
+        <div class="gt-dec" role="group" aria-label="What-if decision">${GATE_DECS.map(([v,l,code])=>`<button class="${cur===v?"on":""}" style="--c:${GATE_DEC_C[v]}" data-gdec="${v}" aria-pressed="${cur===v}">${l}${code?` <code>${code}</code>`:""}</button>`).join("")}</div></div>
+      <div class="gt-verdict" style="--c:${S1.c}">${VERDICT[st]}</div>
+    </div></section>`;
+  const target=st==="recycle"?ms:nextMs;
+  if(!target) h+=`<section class="card-p"><div class="card-h"><h3>After this gate</h3></div><div class="gt-body"><div class="hint">This is the last gate. Passing it closes the project.</div></div></section>`;
+  else {
+    const its=S.issues.filter(i=>i.ms===target.id&&!i.gate), fl=its.map(i=>[i,gateFlag(i,order)]);
+    const n=f=>fl.filter(x=>x[1]&&x[1].f===f).length;
+    const show=st==="recycle"?["rework","clear","wait","early"]:["clear","wait","early","stop"];
+    const later=st==="kill"?S.issues.filter(i=>!i.gate&&order.findIndex(x=>x.m.id===i.ms)>idx).length:0;
+    h+=`<section class="card-p"><div class="card-h"><h3>Effect on <span class="mbar" style="background:${target.color};height:12px;display:inline-block;vertical-align:-1px"></span> ${esc(target.title)}</h3><span class="sub">${its.length} items</span></div><div class="gt-body">
+      <div class="gt-counts">${show.map(f=>`<div class="gt-count" style="--c:${GATE_FLAG[f].c}"><b>${n(f)}</b><span>${GATE_FLAG[f].label}</span></div>`).join("")}</div>
+      ${later?`<div class="hint">${later} items across every later milestone are stopped.</div>`:""}
+      <div class="gt-items">${fl.map(([i,f])=>{ const F=GATE_FLAG[f.f]; return `<div><span class="gt-num" data-open="${i.id}">#${i.id}</span><span class="t">${kindTag(i)}<span title="${esc(i.title)}">${esc(shortTitle(i))}</span></span><span class="gt-flag" style="--c:${F.c}">${F.label}</span></div>`; }).join("")}</div>
+    </div></section>`;
+  }
+  h+=`</div>`;
+
+  // timeline
+  const a=S.sprints[0].start, b=S.sprints[S.sprints.length-1].end, tot=diff(a,b)+1;
+  const X=d=>(Math.max(0,Math.min(tot,diff(a,d)))/tot*100).toFixed(3)+"%", W=(s,e)=>(Math.max(1,diff(s,e)+1)/tot*100).toFixed(3)+"%";
+  const every=Math.max(1,Math.ceil(S.sprints.length/14));
+  const ticks=S.sprints.map((s,k)=>`<i class="tick" style="left:${X(s.start)}"></i>${k%every?"":`<span class="tl" style="left:${X(s.start)}">S${s.n} · ${fmt(s.start)}</span>`}`).join("");
+  const expand=target?target.id:null;
+  h+=`<section class="card-p"><div class="card-h"><h3>Timeline</h3><span class="sub">Gates sit at their milestone's due date. The milestone after the selected gate is expanded.</span></div>
+    <div class="gt-lg"><span><i style="background:${S.milestones[0]?.color||"var(--accent)"}"></i>Clear</span><span><i style="border:1.5px dashed var(--faint)"></i>Waiting on gate</span><span><i style="background:${S.milestones[0]?.color||"var(--accent)"};box-shadow:0 0 0 2px var(--warn)"></i>Started before the gate passed</span><span><i style="background:${S.milestones[0]?.color||"var(--accent)"};box-shadow:0 0 0 2px var(--recycle)"></i>Rework</span><span><i style="background:var(--border2)"></i>Stopped</span></div>
+    <div class="gt-tl"><div class="gt-tl-in"><div class="gt-row tk"><div class="nm">Milestone / item</div><div class="gt-trk">${ticks}</div></div>`;
+  order.forEach(({m,g})=>{
+    const its=S.issues.filter(i=>i.ms===m.id); if(!its.length&&!g) return;
+    const s=its.reduce((x,i)=>i.start<x?i.start:x,its[0]?.start||a), e=its.reduce((x,i)=>i.end>x?i.end:x,its[0]?.end||a);
+    const pct=its.length?Math.round(its.filter(i=>i.status==="done").length/its.length*100):0;
+    const stopped=its.some(i=>gateFlag(i,order)?.f==="stop");
+    h+=`<div class="gt-row ms"><div class="nm"><span class="mbar" style="background:${m.color};height:14px"></span><span class="t" title="${esc(m.title)}">${esc(m.title)}</span></div><div class="gt-trk">${ticks.replace(/<span[^>]*>.*?<\/span>/g,"")}
+      <div class="gt-sb" style="left:${X(s)};width:${W(s,e)};background:color-mix(in srgb,${m.color} 30%,transparent)${stopped?";opacity:.35":""}"><i style="width:${pct}%;background:${m.color}"></i></div>
+      ${g?`<button class="gt-post" style="left:calc(${X(gateDue(g))} + ${(100/tot).toFixed(3)}%);--c:${GATE_ST[gateState(g)].c}" data-gsel="${g.id}" data-tip="<b>Gate ${gn(g)} · ${esc(shortTitle(g))}</b><br>${GATE_ST[gateState(g)].label} · due ${fmt(gateDue(g))}">${gateIco(16)}</button>`:""}</div></div>`;
+    if(m.id===expand) its.filter(i=>!i.gate).forEach(i=>{
+      const f=gateFlag(i,order)?.f||"clear";
+      h+=`<div class="gt-row it"><div class="nm"><span class="gt-num" data-open="${i.id}">#${i.id}</span><span class="t" title="${esc(i.title)}">${esc(shortTitle(i))}</span></div><div class="gt-trk">
+        <div class="gt-ib ${f}${i.status==="done"?" done":""}" style="left:${X(i.start)};width:${W(i.start,i.end)};background:${m.color}" data-open="${i.id}" data-tip="<b>#${i.id} ${esc(shortTitle(i))}</b><br>${GATE_FLAG[f].label} · ${ST[i.status].label}<br>${fmt(i.start)} – ${fmt(i.end)}">${i.status==="done"?"✓ ":""}${f==="early"?"⚠ ":""}${esc(i.assignee)}</div></div></div>`;
+    });
+  });
+  h+=`<div class="gt-today" style="left:calc(240px + (100% - 240px) * ${(diff(a,t)/tot).toFixed(4)})" title="Today"></div></div></div></section>`;
+
+  h+=`<details class="card-p"><summary>How gates work</summary>${howTo}</details></div></div>`;
+  view.innerHTML=h;
+  view.querySelector(".gt-wrap").onclick=e=>{
+    const s=e.target.closest("[data-gsel]"); if(s){ ui.gateSel=+s.dataset.gsel; saveUI(); renderGates(); return; }
+    const d=e.target.closest("[data-gdec]"); if(d){ if(d.dataset.gdec===gateRealDec(sel)) delete GSIM[sel.id]; else GSIM[sel.id]=d.dataset.gdec; renderGates(); return; }
+    if(e.target.closest("[data-gclear]")){ GSIM={}; renderGates(); }
+  };
+  function pillOf(k){ return `<span class="gt-pill" style="--c:${GATE_ST[k].c}">${GATE_ST[k].label}</span>`; }
+  function flagOf(k){ return `<span class="gt-flag" style="--c:${GATE_FLAG[k].c}">${GATE_FLAG[k].label}</span>`; }
+}
+
+/* =====================================================================
    ISSUE DETAILS (read-only: changes are made on GitHub or GitLab)
    ===================================================================== */
 const $=id=>document.getElementById(id);
@@ -1471,6 +1770,7 @@ function openIssue(id){
       ${par?row("Parent",`${ref(par.id)} ${esc(shortTitle(par))}`):""}
       ${kids.length?row("Sub-items",kids.map(k=>ref(k.id)).join(" ")):""}
       ${i.deps.length?row("Blocked by",i.deps.map(ref).join(" ")):""}
+      ${i.gate?(()=>{ const c=gateCrit(i); return row("Gate",`${gatePill(i)} <span class="hint">${c.done} of ${c.total} criteria done</span>`); })():""}
       ${i.labels.length?row("Labels",i.labels.map(labelHTML).join(" ")):""}
     </div>`;
   const hist=S.events.filter(e=>e.issue===id);
@@ -2208,7 +2508,7 @@ async function openProject(c){
   if(c) $("statusLine").innerHTML=`Loading ${esc(c.name)} from ${provName(c)}…`;
   const data=await fetchProject(c);
   const switching=(c?connKey(c):null)!==conns.active || !S;
-  CONN=c; conns.active=c?connKey(c):null;
+  CONN=c; conns.active=c?connKey(c):null; GSIM={};
   if(c){ c.lastOpened=Date.now(); rememberConn(c); }
   saveConns();
   S=data; applyMembers();
